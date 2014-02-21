@@ -1,5 +1,6 @@
 package main
 
+<<<<<<< HEAD
 type callback func(s string)
 
 func test(a, b int, sum func(int, int) int) {
@@ -19,3 +20,6 @@ func main() {
 
 	test(1, 2, sum)
 }
+=======
+import "fmt"
+>>>>>>> f3e35a66f80e382f86e6bf5e04031b9ae272304a
