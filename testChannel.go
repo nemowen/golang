@@ -24,6 +24,7 @@ func Server() chan *Data {
 }
 
 func serverProess(data *Data) {
+	s
 	x := 0
 	for v := range data.args {
 		x += v
