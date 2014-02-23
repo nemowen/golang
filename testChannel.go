@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+// Do not communicate by sharing memory. Instead, share memory by communicating。
+
 type Data struct {
 	args []int
 	ch   chan string
