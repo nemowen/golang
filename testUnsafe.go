@@ -18,4 +18,5 @@ func main() {
 	var a float64 = 1 << 100
 	fmt.Printf("%v\n", a)
 	fmt.Printf("System Name:%s, System Arch:%s, CPU Numbers:%d", runtime.GOOS, runtime.GOARCH, runtime.NumCPU())
+
 }
