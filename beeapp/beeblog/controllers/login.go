@@ -10,17 +10,13 @@ type LoginController struct {
 }
 
 func (this *LoginController) Get() {
-	//set templater
 	this.Data["PageTitle"] = "Login"
 	this.TplNames = "login.html"
-
 	if this.Input().Get("exit") == "true" {
 		this.Ctx.SetCookie("uname", "", -1, "/")
 		this.Ctx.SetCookie("upwd", "", -1, "/")
-		this.Redirect("/", 301)
-		return
 	}
-
+	beego.Debug("okokokokokoko")
 }
 
 func (this *LoginController) Post() {

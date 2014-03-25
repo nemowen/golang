@@ -13,6 +13,7 @@ func (this *TopicController) Get() {
 	this.Data["PageTitle"] = "Topic"
 	this.Data["IsTopic"] = true
 	this.Data["IsLogin"] = checkAccount(this.Ctx)
+	beego.Debug("debug topic")
 	this.TplNames = "topic.html"
 
 }

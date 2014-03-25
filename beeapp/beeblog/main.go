@@ -16,6 +16,8 @@ func main() {
 	orm.Debug = true
 	orm.RunSyncdb("default", false, true)
 
+	beego.SetLevel(beego.LevelDebug)
+
 	beego.Router("/", &controllers.MainController{})
 	beego.Router("/category", &controllers.CategoryController{})
 	beego.Router("/topic", &controllers.TopicController{})
