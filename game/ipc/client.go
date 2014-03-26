@@ -2,6 +2,7 @@ package ipc
 
 import (
 	"encoding/json"
+	"mytest/game/cg"
 )
 
 type IPCClient struct {
