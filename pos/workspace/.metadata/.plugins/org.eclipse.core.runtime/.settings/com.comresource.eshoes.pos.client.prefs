@@ -1,7 +1,4 @@
 #Thu Mar 27 16:52:04 GMT+08:00 2014
 eclipse.preferences.version = 1
 com.comresource.uselocal = 65544
-
-[]
-cr.update = `http://192.168.2.19:2000/posUpdate`
-
+cr.update = http://192.168.2.19:2000/posUpdate
