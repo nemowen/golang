@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"game/cg"
-	"game/ipc"
+	"mytest/game/cg"
+	"mytest/game/ipc"
 	"os"
 	"strconv"
 	"strings"

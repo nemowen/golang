@@ -7,8 +7,6 @@ import (
 	"sync"
 )
 
-var _ ipc.Server = &CenterServer{}
-
 type Message struct {
 	From    string "from"
 	To      string "to"
