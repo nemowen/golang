@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"mytest/game/cg"
-	"mytest/game/ipc"
+	"gotest/game/cg"
+	"gotest/game/ipc"
 	"os"
 	"strconv"
 	"strings"
@@ -13,8 +13,8 @@ import (
 var centerClient *cg.CenterClient
 
 func startCenterService() error {
-	server := ipc.NewIpcServer(&cg.CenterServer{})
-	client := ipc.NewIpcClient(server)
+	server := ipc.NewIPCServer(&cg.CenterServer{})
+	client := ipc.NewIPCClient(server)
 	centerClient = &cg.CenterClient{client}
 	return nil
 }

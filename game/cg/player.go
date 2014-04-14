@@ -14,7 +14,7 @@ type Player struct {
 }
 
 func NewPlayer() *Player {
-	m := make(chan *message, 1024)
+	m := make(chan *Message, 1024)
 	player := &Player{"", 0, 0, 0, m}
 
 	go func(p *Player) {

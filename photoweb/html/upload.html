@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  	<meta charset="utf-8">
+  	<title>Go Web测试 - {{.Name}}</title>
+
+  	<body>
+  		<form action="/upload" method="POST" enctype="multipart/form-data">
+  			Choose an image to upload: 
+  			<input name="image" type="file" />	
+  			<input type="submit" value="Upload"/>
+  		</form>
+  	</body>
+</html>

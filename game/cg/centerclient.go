@@ -3,11 +3,11 @@ package cg
 import (
 	"encoding/json"
 	"errors"
-	"mytest/game/ipc"
+	"gotest/game/ipc"
 )
 
 type CenterClient struct {
-	*ipc.IpcClient
+	*ipc.IPCClient
 }
 
 func (client *CenterClient) AddPlayer(player *Player) error {

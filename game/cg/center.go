@@ -3,7 +3,7 @@ package cg
 import (
 	"encoding/json"
 	"errors"
-	"mytest/game/ipc"
+	"gotest/game/ipc"
 	"sync"
 )
 
@@ -16,7 +16,6 @@ type Message struct {
 type CenterServer struct {
 	servers map[string]ipc.Server
 	players []*Player
-	rooms   []*Room
 	mutex   sync.RWMutex
 }
 
