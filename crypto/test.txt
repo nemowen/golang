@@ -1,0 +1,29 @@
+	
+exit status 1
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 1.1044922s ]
+	86377f6e11e0e7e437a91f87d0076811 ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 994.1407ms ]
+	b6226b7a11a5eaefd96b4b0ea1cbb545 ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 1.03125s ]
+	313332353634363534b6226b7a11a5eaefd96b4b0ea1cbb545 ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 1.0039062s ]
+	b6226b7a11a5eaefd96b4b0ea1cbb545 ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 985.3515ms ]
+	b6226b7a11a5eaefd96b4b0ea1cbb545 ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 987.3047ms ]
+	6e5eb784b2b2fa605a4852006732613e ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 996.0938ms ]
+	f1290186a5d0b1ceab27f4e77c0c5d68 ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
+[ `go run md5.go` | done: 1.0830078s ]
+	aff024fe4ab0fece4091de044c58c9ae4233383a ./test.txt
+[ E:/Work/go/src/gotest/crypto/ ] # 
