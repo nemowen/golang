@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(2)
 	t1 := time.Now()
 	exit := make(chan bool)
 	go func() {

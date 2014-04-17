@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 )
 
 type User struct {
@@ -17,9 +19,12 @@ const (
 )
 
 func main() {
+	cpus := runtime.NumCPU()
+	maxps := runtime.GOMAXPROCS(cpus)
+	fmt.Println(cpus, ":", maxps)
 	http.HandleFunc("/view", viewHandler)
 	http.HandleFunc("/upload", myHandle)
-	err := http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8081", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
