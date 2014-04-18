@@ -50,12 +50,14 @@ func isExists(path string) bool {
 }
 
 func myHandle(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method == "GET" {
 		t, _ := template.ParseFiles("./html/upload.html")
 		p := User{Name: "Nemo"}
 		t.Execute(w, p)
 		return
 	}
+
 	if r.Method == "POST" {
 		// 获取文件流
 		file, fh, err := r.FormFile("image")
