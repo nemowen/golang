@@ -1,20 +1,20 @@
 package main
 
 import (
-	"gotest/rpctest"
+	"gotest/rbg/server/rpcobj"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
 	"runtime"
-	"time"
 )
 
 func main() {
+	exit := make(chan bool)
 	cpus := runtime.NumCPU()
 	log.Println("CUPS:", cpus)
 	runtime.GOMAXPROCS(cpus)
-	u := new(rpctest.User)
+	u := new(rpcobj.Obj)
 	rpc.Register(u)
 	rpc.HandleHTTP()
 
@@ -26,6 +26,6 @@ func main() {
 
 	go http.Serve(l, nil)
 
-	time.Sleep(10 * time.Minute)
+	<-exit
 
 }

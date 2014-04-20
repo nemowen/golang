@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"github.com/tarm/goserial"
 	"io"
 	"log"
@@ -8,6 +9,7 @@ import (
 )
 
 func main() {
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	c := &serial.Config{Name: "COM2", Baud: 128000}
 	s, err := serial.OpenPort(c)
@@ -16,15 +18,14 @@ func main() {
 	}
 
 	exit := make(chan bool, 1)
-	ioch := make(chan []byte, 1)
+	ioch := make(chan []byte, 128)
 
 	go readData(&ioch, s)
 
 	go func(ioch *chan []byte) {
 		for {
-			var a []byte = <-*ioch
-			log.Printf("%s", a)
-
+			a := <-*ioch
+			log.Println(string(a))
 		}
 
 		//exit <- true
