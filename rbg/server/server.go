@@ -27,5 +27,4 @@ func main() {
 	go http.Serve(l, nil)
 
 	<-exit
-
 }
