@@ -19,7 +19,7 @@ type Obj struct {
 }
 
 const (
-	SAVE_PATH string = "D:/"
+	BMP_SAVE_PATH string = "D:/"
 )
 
 var w sync.WaitGroup
@@ -34,7 +34,7 @@ func saveObj(obj Obj) {
 	w.Add(2)
 	go func() {
 		s := obj.Number + "|" + obj.Date + "|" + string(obj.ID)
-		saveTo, e := os.Create(SAVE_PATH + obj.ID + ".txt")
+		saveTo, e := os.Create(BMP_SAVE_PATH + obj.ID + ".txt")
 		if e != nil {
 			log.Println(e)
 		}
@@ -47,7 +47,7 @@ func saveObj(obj Obj) {
 	}()
 
 	go func() {
-		f, err := os.Create(SAVE_PATH + obj.ID + ".bmp")
+		f, err := os.Create(BMP_SAVE_PATH + obj.ID + ".bmp")
 		if err != nil {
 			log.Println("保存bmp失败：", obj.ID)
 		}

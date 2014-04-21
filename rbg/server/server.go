@@ -12,19 +12,15 @@ import (
 func main() {
 	exit := make(chan bool)
 	cpus := runtime.NumCPU()
-	log.Println("CUPS:", cpus)
 	runtime.GOMAXPROCS(cpus)
 	u := new(rpcobj.Obj)
 	rpc.Register(u)
 	rpc.HandleHTTP()
-
 	l, e := net.Listen("tcp", ":1314")
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
 	defer l.Close()
-
 	go http.Serve(l, nil)
-
 	<-exit
 }

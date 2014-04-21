@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
-	//"fmt"
+	"encoding/json"
+	"gotest/rbg/config"
 	"gotest/rbg/server/rpcobj"
+	"io/ioutil"
 	"log"
-	//"net"
 	"net/rpc"
 	"os"
 	"runtime"
@@ -15,74 +16,56 @@ import (
 )
 
 const (
-	ADDR                  string        = "127.0.0.1:1314" //IP地址与端口
-	WATCHE_FILE           string        = "D:/EN/flag.ini" //监控文件
-	NOTE_FILE             string        = "D:/EN/note.ini" //note文件
-	START_WORK_FLAG       string        = "OK"             //开始工作状态
-	FLAG_STATE_SPEED      time.Duration = 5                //读取flag.ini文件速度， 称为单位
-	RECONNECT_SERVER_TIME time.Duration = 30               //当连接失败时，多少秒后重新连接服务器
+	//客户端配置文件路径
+	CLIENT_PREFERENCES string = "C:/Windows/Client.Preferences.json"
 )
 
 var (
-	client    *rpc.Client //连接服务器client实例
-	t         time.Time
-	reply     chan string
-	read      chan bool
-	noteBufer *bufio.Reader //需要读取的文件
-	rebackObj *rpcobj.Obj   //当网络在传输过程中失败时，回滚的对象
-	obj       *rpcobj.Obj   //需要传输的对象
-	//handwareAddrs map[string]string
+	// 连接服务器client实例
+	client *rpc.Client
+	// 采集用时统计
+	t time.Time
+	// 用户接收监控文件的状态
+	reply chan string
+	// 是否可以开始采集数据
+	read chan bool
+	// 需要读取的文件
+	noteBufer *bufio.Reader
+	// 当网络在传输过程中失败时，回滚的对象
+	rebackObj *rpcobj.Obj
+	// 需要传输的对象
+	obj *rpcobj.Obj
+	// 配置文件
+	client_preferences config.ClientConfig
 )
 
 func init() {
-	// 以下读取网卡信息
-	// Interface, err := net.Interfaces()
-	// if err != nil {
-	// 	panic("未发现网卡地址")
-	// 	os.Exit(1)
-	// }
-	// handwareAddrs = make(map[string]string, len(Interface))
-	// for _, inter := range Interface {
-	// 	inMAC := strings.ToUpper(inter.HardwareAddr.String())
-	// 	handwareAddrs[inMAC] = inMAC
-	// }
+	//加载配置文件
+	file, e := ioutil.ReadFile(CLIENT_PREFERENCES)
+	if e != nil {
+		panic("读取配置文件失败！请与管理员联系！")
+		os.Exit(1)
+	}
 
-	// if len(os.Args) != 2 {
-	// 	fmt.Println("为保障安全:请先绑定本机上的网卡地址")
-	// 	os.Exit(0)
-	// }
+	json.Unmarshal(file, &client_preferences)
 
-	// addr := os.Args[1]
-	// h, e := net.ParseMAC(addr)
-	// if e != nil {
-	// 	fmt.Println("为保障安全:请先绑定本机上的网卡地址")
-	// 	fmt.Println("方法：client.exe 90-4C-E5-58-7E-FE")
-	// 	os.Exit(2)
-	// }
-	// inputMAC := strings.ToUpper(h.String())
-	// if inputMAC != handwareAddrs[inputMAC] {
-	// 	fmt.Println("网卡地址不匹配")
-	// 	os.Exit(0)
-	// }
-
+	//os.Exit(1)
 	//开始连接服务器
 	client = connect()
 }
 
 func main() {
+	// 启动CPU运行数量
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	// 用户接收监控文件的状态
 	reply = make(chan string, 1)
 	read = make(chan bool)
-
 	// 启动监控文件
-	go NewWatcher(WATCHE_FILE, reply, read)
+	go NewWatcher(client_preferences.FLAG_FILE_PATH, reply, read)
 	read <- true
 
 	// 读取传回的监控内容
 	for d := range reply {
-		if strings.Contains(strings.ToUpper(d), START_WORK_FLAG) {
+		if strings.Contains(strings.ToUpper(d), client_preferences.START_WORK_FLAG) {
 			read <- false
 			// 开始采集并发送数据
 			sendDataToServer()
@@ -93,13 +76,14 @@ func main() {
 		}
 	}
 
+	// 关闭连接
 	defer closeConn(client)
 }
 
 func done() {
-	f, e := os.Create(WATCHE_FILE)
+	f, e := os.Create(client_preferences.FLAG_FILE_PATH)
 	if e != nil {
-		log.Println("打开文件失败：", WATCHE_FILE)
+		log.Println("打开文件失败：", client_preferences.FLAG_FILE_PATH)
 		return
 	}
 	defer f.Close()
@@ -107,13 +91,12 @@ func done() {
 	f.WriteString("END")
 
 	//清空数据
-	note, e := os.Create(NOTE_FILE)
+	note, e := os.Create(client_preferences.NOTE_FILE_PATH)
 	if e != nil {
-		log.Println("打开文件失败：", NOTE_FILE)
+		log.Println("打开文件失败：", client_preferences.NOTE_FILE_PATH)
 		return
 	}
 	defer note.Close()
-	//note.WriteString("")
 }
 
 // 监控flag.ini文件状态
@@ -130,18 +113,18 @@ func NewWatcher(filepath string, reply chan string, read chan bool) {
 			f.Read(buf)
 			reply <- string(buf)
 		}
-		time.Sleep(FLAG_STATE_SPEED * time.Second)
+		time.Sleep(client_preferences.FLAG_STATE_SPEED * time.Second)
 	}
 }
 
 func connect() (client *rpc.Client) {
 	for client == nil {
 		var e error
-		client, e = rpc.DialHTTP("tcp", ADDR)
+		client, e = rpc.DialHTTP("tcp", client_preferences.ADDR_PORT)
 		if e != nil {
 			log.Println("连接服务器失败,请检查网络或服务器是否启动...")
 			log.Println("30秒后自动重新连接...")
-			time.Sleep(RECONNECT_SERVER_TIME * time.Second)
+			time.Sleep(client_preferences.RECONNECT_SERVER_TIME * time.Second)
 			continue
 		} else {
 			log.Println("连接服务器成功...")
@@ -160,9 +143,9 @@ func closeConn(client *rpc.Client) {
 func sendDataToServer() {
 	t = time.Now()
 	//获取note文件
-	f, e := os.Open(NOTE_FILE)
+	f, e := os.Open(client_preferences.NOTE_FILE_PATH)
 	if e != nil {
-		log.Println("打开文件失败：", NOTE_FILE)
+		log.Println("打开文件失败：", client_preferences.NOTE_FILE_PATH)
 	}
 	defer f.Close()
 	noteBufer = bufio.NewReader(f)
@@ -200,11 +183,6 @@ func sendDataToServer() {
 
 		replay := new(string)
 
-		//log.Println(">>>>>> 正在传输", obj.Number)
-
-		//为制造网络断开，加时，模拟网络异常
-		//time.Sleep(3 * time.Second)
-
 		// call method: 同步方式，似乎效率比go 异步方法高
 		err := client.Call("Obj.SendToServer", obj, replay)
 		if err != nil {
@@ -216,7 +194,6 @@ func sendDataToServer() {
 			client = connect()
 			continue
 		}
-
 		log.Println(">>>>>> 上传成功", obj.Number, *replay)
 		// 清除回滚对象
 		rebackObj = nil
@@ -224,5 +201,6 @@ func sendDataToServer() {
 	}
 	log.Println("已经完成本笔任务，用时：", time.Now().Sub(t))
 
+	// 完成本次任务后续操作
 	done()
 }
