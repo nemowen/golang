@@ -22,5 +22,7 @@ func main() {
 	}
 	defer l.Close()
 	go http.Serve(l, nil)
+
+	log.Println("服务器已经启动！")
 	<-exit
 }

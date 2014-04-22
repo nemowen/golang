@@ -16,6 +16,7 @@ type Obj struct {
 	SerialNumberInTimes int
 	Number              string
 	Ima                 []byte
+	ImaPath             string
 }
 
 const (

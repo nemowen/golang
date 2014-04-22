@@ -46,10 +46,8 @@ func init() {
 		panic("读取配置文件失败！请与管理员联系！")
 		os.Exit(1)
 	}
-
 	json.Unmarshal(file, &client_preferences)
 
-	//os.Exit(1)
 	//开始连接服务器
 	client = connect()
 }
@@ -113,7 +111,12 @@ func NewWatcher(filepath string, reply chan string, read chan bool) {
 			f.Read(buf)
 			reply <- string(buf)
 		}
+		// 检查频率不能小于2秒
+		if 2 > client_preferences.FLAG_STATE_SPEED {
+			client_preferences.FLAG_STATE_SPEED = 2
+		}
 		time.Sleep(client_preferences.FLAG_STATE_SPEED * time.Second)
+
 	}
 }
 
@@ -123,7 +126,7 @@ func connect() (client *rpc.Client) {
 		client, e = rpc.DialHTTP("tcp", client_preferences.ADDR_PORT)
 		if e != nil {
 			log.Println("连接服务器失败,请检查网络或服务器是否启动...")
-			log.Println("30秒后自动重新连接...")
+			log.Println(client_preferences.RECONNECT_SERVER_TIME.Nanoseconds(), "秒后自动重新连接...")
 			time.Sleep(client_preferences.RECONNECT_SERVER_TIME * time.Second)
 			continue
 		} else {
