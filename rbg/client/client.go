@@ -84,9 +84,9 @@ func done() {
 		log.Println("打开文件失败：", client_preferences.FLAG_FILE_PATH)
 		return
 	}
-	defer f.Close()
 	// 将Flag标识位置为END
 	f.WriteString("END")
+	defer f.Close()
 
 	//清空数据
 	note, e := os.Create(client_preferences.NOTE_FILE_PATH)
@@ -106,9 +106,8 @@ func NewWatcher(filepath string, reply chan string, read chan bool) {
 				log.Println("打开文件失败：", filepath)
 				continue
 			}
-			defer f.Close()
-			buf := make([]byte, 8)
-			f.Read(buf)
+			buf, _ := ioutil.ReadAll(f)
+			closeFile(f)
 			reply <- string(buf)
 		}
 		// 检查频率不能小于2秒
@@ -143,6 +142,13 @@ func closeConn(client *rpc.Client) {
 	}
 }
 
+func closeFile(f *os.File) {
+	if f != nil {
+		f.Close()
+		f = nil
+	}
+}
+
 func sendDataToServer() {
 	t = time.Now()
 	//获取note文件
@@ -150,8 +156,8 @@ func sendDataToServer() {
 	if e != nil {
 		log.Println("打开文件失败：", client_preferences.NOTE_FILE_PATH)
 	}
-	defer f.Close()
 	noteBufer = bufio.NewReader(f)
+	defer closeFile(f)
 
 	var line string
 	var err error
@@ -163,6 +169,7 @@ func sendDataToServer() {
 				log.Println("数据有误:", line)
 				break
 			}
+			line = strings.TrimRight(line, "\r\n")
 			items := strings.Split(line, "|")
 			obj = new(rpcobj.Obj)
 			obj.Date = items[0]
@@ -172,13 +179,18 @@ func sendDataToServer() {
 			obj.FaceValue, _ = strconv.Atoi(items[5])
 			obj.Version, _ = strconv.Atoi(items[6])
 			obj.SerialNumberInTimes, _ = strconv.Atoi(items[7])
-			obj.Number = items[8]
+			obj.Number = items[9]
+			obj.ImaPath = items[10]
 
 			//读取图像数据
-			f, _ := os.Open(items[9])
-			defer f.Close()
-			b := make([]byte, 5<<10)
+			f, e := os.Open(obj.ImaPath)
+			if e != nil {
+				log.Println("读取图像数据失败：["+obj.Number+"]"+"["+obj.ID+"]", e)
+			}
+			b, _ := ioutil.ReadAll(f)
 			f.Read(b)
+			closeFile(f)
+
 			obj.Ima = b
 		} else {
 			obj = rebackObj

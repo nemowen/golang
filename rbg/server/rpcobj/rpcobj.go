@@ -25,16 +25,16 @@ const (
 
 var w sync.WaitGroup
 
-func (o *Obj) SendToServer(obj Obj, replay *string) error {
+func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 	saveObj(obj)
 	*replay = "ok"
 	return nil
 }
 
-func saveObj(obj Obj) {
+func saveObj(obj *Obj) {
 	w.Add(2)
 	go func() {
-		s := obj.Number + "|" + obj.Date + "|" + string(obj.ID)
+		s := obj.Number + "|" + obj.Date + "|" + string(obj.ID) + "|" + obj.ImaPath + "|" + obj.Type + "|" + string(obj.SerialNumberInTimes)
 		saveTo, e := os.Create(BMP_SAVE_PATH + obj.ID + ".txt")
 		if e != nil {
 			log.Println(e)
@@ -52,8 +52,8 @@ func saveObj(obj Obj) {
 		if err != nil {
 			log.Println("保存bmp失败：", obj.ID)
 		}
-		defer f.Close()
 		f.Write(obj.Ima)
+		f.Close()
 		w.Done()
 	}()
 	w.Wait()

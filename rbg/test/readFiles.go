@@ -1,8 +1,8 @@
 package main
 
 import (
+	//"io/ioutil"
 	"log"
-	// "io/ioutil"
 	//"bufio"
 	"os"
 	//"strings"
