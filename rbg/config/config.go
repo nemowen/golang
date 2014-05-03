@@ -21,7 +21,17 @@ type ClientConfig struct {
 
 type ServerConfig struct {
 	// IP地址与端口
-	ADDR_PORT string
+	SERVER_IP_PORT string
 	// 保存BMP的路径
 	BMP_SAVE_PATH string
+	// 数据库IP
+	DATABASE_IP string
+	// 数据库IP
+	DATABASE_PORT string
+	// 数据库名称
+	DATABASE_NAME string
+	// 数据库用户名
+	DATABASE_USER_NAME string
+	//数据库密码
+	DATABASE_PASSWORD string
 }

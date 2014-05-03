@@ -176,10 +176,11 @@ func sendDataToServer() {
 			obj.Time = items[1]
 			obj.ID = items[2]
 			obj.Type = items[3]
+			obj.CardNumber = items[4]
 			obj.FaceValue, _ = strconv.Atoi(items[5])
 			obj.Version, _ = strconv.Atoi(items[6])
 			obj.SerialNumberInTimes, _ = strconv.Atoi(items[7])
-			obj.Number = items[9]
+			obj.CurrencyNumber = items[9]
 			obj.ImaPath = items[10]
 
 			//读取图像数据
