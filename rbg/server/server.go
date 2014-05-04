@@ -32,11 +32,14 @@ func init() {
 }
 
 func main() {
-	exit := make(chan bool)
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
+
+	exit := make(chan bool)
+
 	u := new(rpcobj.Obj)
 	rpc.Register(u)
+
 	rpc.HandleHTTP()
 	l, e := net.Listen("tcp", server_preferences.SERVER_IP_PORT)
 	if e != nil {

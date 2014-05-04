@@ -122,7 +122,7 @@ func NewWatcher(filepath string, reply chan string, read chan bool) {
 func connect() (client *rpc.Client) {
 	for client == nil {
 		var e error
-		client, e = rpc.DialHTTP("tcp", client_preferences.ADDR_PORT)
+		client, e = rpc.DialHTTP("tcp", client_preferences.SERVER_IP_PORT)
 		if e != nil {
 			log.Println("连接服务器失败,请检查网络或服务器是否启动...")
 			log.Println(client_preferences.RECONNECT_SERVER_TIME.Nanoseconds(), "秒后自动重新连接...")
@@ -150,6 +150,12 @@ func closeFile(f *os.File) {
 }
 
 func sendDataToServer() {
+	// var states int
+	// errs := client.Call("Obj.GetConn", obj.ClientName, &states)
+	// if errs != nil {
+	// 	log.Println(errs)
+	// }
+
 	t = time.Now()
 	//获取note文件
 	f, e := os.Open(client_preferences.NOTE_FILE_PATH)
@@ -176,7 +182,7 @@ func sendDataToServer() {
 			obj.Time = items[1]
 			obj.ID = items[2]
 			obj.Type = items[3]
-			obj.CardNumber = items[4]
+			obj.CardId = items[4]
 			obj.FaceValue, _ = strconv.Atoi(items[5])
 			obj.Version, _ = strconv.Atoi(items[6])
 			obj.SerialNumberInTimes, _ = strconv.Atoi(items[7])
@@ -186,7 +192,7 @@ func sendDataToServer() {
 			//读取图像数据
 			f, e := os.Open(obj.ImaPath)
 			if e != nil {
-				log.Println("读取图像数据失败：["+obj.Number+"]"+"["+obj.ID+"]", e)
+				log.Println("读取图像数据失败：["+obj.CurrencyNumber+"]"+"["+obj.ID+"]", e)
 			}
 			b, _ := ioutil.ReadAll(f)
 			f.Read(b)
@@ -210,7 +216,7 @@ func sendDataToServer() {
 			client = connect()
 			continue
 		}
-		log.Println(">>>>>> 上传成功", obj.Number, *replay)
+		log.Println(">>>>>> 上传成功", obj.CurrencyNumber, *replay)
 		// 清除回滚对象
 		rebackObj = nil
 
