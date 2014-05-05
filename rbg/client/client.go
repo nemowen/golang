@@ -180,7 +180,7 @@ func sendDataToServer() {
 			obj = new(rpcobj.Obj)
 			obj.Date = items[0]
 			obj.Time = items[1]
-			obj.ID = items[2]
+			obj.SerialNumber = items[2]
 			obj.Type = items[3]
 			obj.CardId = items[4]
 			obj.FaceValue, _ = strconv.Atoi(items[5])
@@ -192,7 +192,7 @@ func sendDataToServer() {
 			//读取图像数据
 			f, e := os.Open(obj.ImaPath)
 			if e != nil {
-				log.Println("读取图像数据失败：["+obj.CurrencyNumber+"]"+"["+obj.ID+"]", e)
+				log.Println("读取图像数据失败：["+obj.CurrencyNumber+"]"+"["+obj.SerialNumber+"]", e)
 			}
 			b, _ := ioutil.ReadAll(f)
 			f.Read(b)
