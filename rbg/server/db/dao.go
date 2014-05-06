@@ -5,37 +5,35 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"gotest/rbg/server/utils"
 	"log"
+	"os"
 )
 
-const (
-	_DB_MAX_IDLE_CONNS int = 100
-	_DB_MAX_OPEN_CONNS int = 1000
-)
+var Dao *sql.DB
 
-var dao *sql.DB
+func init() {
+	openDB()
+}
 
 // 获取数据库
-func OpenDB() *sql.DB {
-	if dao != nil {
-		return dao
-	}
-	config := utils.LoadConfig()
-	dao, err := sql.Open("mysql", config.DATABASE_USER_NAME+":"+config.DATABASE_PASSWORD+"@/"+config.DATABASE_NAME+"?charset=utf8")
+func openDB() {
+	config := utils.Server_preferences
+	db, err := sql.Open("mysql", config.DATABASE_USER_NAME+":"+config.DATABASE_PASSWORD+"@/"+config.DATABASE_NAME+"?charset=utf8")
 	if err != nil {
 		errmsg := "错误：连接数据库连接失败！"
 		log.Println(errmsg)
 		log.Println(err)
+		os.Exit(1)
 	}
-	dao.SetMaxIdleConns(_DB_MAX_IDLE_CONNS)
-	dao.SetMaxOpenConns(_DB_MAX_OPEN_CONNS)
+	db.SetMaxIdleConns(config.DB_MAX_IDLE_CONNS)
+	db.SetMaxOpenConns(config.DB_MAX_OPEN_CONNS)
 	log.Println("连接数据库成功!！")
-	return dao
+	Dao = db
 }
 
 // 关闭客户端连接
 func CloseConn() {
-	if nil != dao {
-		dao.Close()
-		dao = nil
+	if nil != Dao {
+		Dao.Close()
+		Dao = nil
 	}
 }

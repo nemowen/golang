@@ -10,23 +10,23 @@ import (
 
 const (
 	//客户端配置文件路径
-	_SERVER_PREFERENCES string = "C:/Windows/Server.Preferences.json"
+	_Server_preferences string = "C:/Windows/Server.Preferences.json"
 )
 
-var server_preferences *config.ServerConfig
+var Server_preferences *config.ServerConfig
+
+func init() {
+	loadConfig()
+}
 
 //加载配置文件
-func LoadConfig() *config.ServerConfig {
-	if server_preferences != nil {
-		return server_preferences
-	}
-	server_preferences = new(config.ServerConfig)
-	file, e := ioutil.ReadFile(_SERVER_PREFERENCES)
+func loadConfig() {
+	Server_preferences = new(config.ServerConfig)
+	file, e := ioutil.ReadFile(_Server_preferences)
 	if e != nil {
 		panic("读取配置文件失败！请与管理员联系！")
 		os.Exit(1)
 	}
-	json.Unmarshal(file, server_preferences)
+	json.Unmarshal(file, Server_preferences)
 	log.Println("加载配置文件成功！")
-	return server_preferences
 }

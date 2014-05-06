@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"gotest/rbg/config"
-	"gotest/rbg/server/rpcobj"
 	"io/ioutil"
 	"log"
 	"net/rpc"
@@ -14,6 +13,25 @@ import (
 	"strings"
 	"time"
 )
+
+type Obj struct {
+	Date                string    //日期
+	Time                string    //时间
+	InTime              time.Time //插入时间
+	SerialNumber        string    //流水号
+	Type                string    //交易类型
+	CardId              string    //预留卡号
+	FaceValue           int       //面值
+	Version             int       //版本号
+	CurrencyCode        int       //币种
+	SerialNumberInTimes int       //该钞在本笔交易内序号
+	CurrencyNumber      string    //冠字号码
+	Ima                 []byte    //冠字号图像数据
+	ImaPath             string    //冠字号保存图像路径
+
+	ClientName string //客户端设备名称
+	ClientIP   string //客户端IP
+}
 
 const (
 	//客户端配置文件路径
@@ -32,9 +50,9 @@ var (
 	// 需要读取的文件
 	noteBufer *bufio.Reader
 	// 当网络在传输过程中失败时，回滚的对象
-	rebackObj *rpcobj.Obj
+	rebackObj *Obj
 	// 需要传输的对象
-	obj *rpcobj.Obj
+	obj *Obj
 	// 配置文件
 	client_preferences config.ClientConfig
 )
@@ -150,12 +168,6 @@ func closeFile(f *os.File) {
 }
 
 func sendDataToServer() {
-	// var states int
-	// errs := client.Call("Obj.GetConn", obj.ClientName, &states)
-	// if errs != nil {
-	// 	log.Println(errs)
-	// }
-
 	t = time.Now()
 	//获取note文件
 	f, e := os.Open(client_preferences.NOTE_FILE_PATH)
@@ -173,11 +185,11 @@ func sendDataToServer() {
 			line, err = noteBufer.ReadString('\n')
 			if 10 > len(line) {
 				log.Println("数据有误:", line)
-				break
+				continue
 			}
 			line = strings.TrimRight(line, "\r\n")
 			items := strings.Split(line, "|")
-			obj = new(rpcobj.Obj)
+			obj = new(Obj)
 			obj.Date = items[0]
 			obj.Time = items[1]
 			obj.SerialNumber = items[2]
@@ -185,7 +197,8 @@ func sendDataToServer() {
 			obj.CardId = items[4]
 			obj.FaceValue, _ = strconv.Atoi(items[5])
 			obj.Version, _ = strconv.Atoi(items[6])
-			obj.SerialNumberInTimes, _ = strconv.Atoi(items[7])
+			obj.CurrencyCode, _ = strconv.Atoi(items[7])
+			obj.SerialNumberInTimes, _ = strconv.Atoi(items[8])
 			obj.CurrencyNumber = items[9]
 			obj.ImaPath = items[10]
 

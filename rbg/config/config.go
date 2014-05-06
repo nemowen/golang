@@ -32,4 +32,8 @@ type ServerConfig struct {
 	DATABASE_USER_NAME string
 	//数据库密码
 	DATABASE_PASSWORD string
+	//最大空闲连接数
+	DB_MAX_IDLE_CONNS int
+	//最大连接数
+	DB_MAX_OPEN_CONNS int
 }

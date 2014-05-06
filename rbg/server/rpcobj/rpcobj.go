@@ -1,6 +1,10 @@
 package rpcobj
 
 import (
+	"gotest/rbg/server/db"
+	"gotest/rbg/server/utils"
+	"log"
+	"os"
 	"time"
 )
 
@@ -14,6 +18,7 @@ type Obj struct {
 	CardId              string    //预留卡号
 	FaceValue           int       //面值
 	Version             int       //版本号
+	CurrencyCode        int       //币种
 	SerialNumberInTimes int       //该钞在本笔交易内序号
 	CurrencyNumber      string    //冠字号码
 	Ima                 []byte    //冠字号图像数据
@@ -27,4 +32,24 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 	saveObj(obj)
 	*replay = "ok"
 	return nil
+}
+
+func saveObj(obj *Obj) {
+
+	//go func() {
+	insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
+	str_time, _ := time.Parse("2006-01-02 15:04:05", (obj.Date[0:4] + "-" + obj.Date[4:6] + "-" + obj.Date[6:8] + " " + obj.Time))
+
+	db.Dao.Exec(insert_sql, obj.Date, obj.Time, str_time, obj.CardId, obj.SerialNumberInTimes, obj.CurrencyNumber)
+	//}()
+
+	//go func() {
+	f, err := os.Create(utils.Server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
+	if err != nil {
+		log.Println("保存bmp失败：", obj.SerialNumber)
+	}
+	f.Write(obj.Ima)
+	f.Close()
+	//}()
+
 }

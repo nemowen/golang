@@ -14,15 +14,13 @@ func main() {
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
 
-	config := utils.LoadConfig()
-
 	exit := make(chan bool)
 
 	u := new(rpcobj.Obj)
 	rpc.Register(u)
 
 	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", config.SERVER_IP_PORT)
+	l, e := net.Listen("tcp", utils.Server_preferences.SERVER_IP_PORT)
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
