@@ -1,6 +1,7 @@
 package rpcobj
 
 import (
+	"gotest/rbg/config"
 	"gotest/rbg/server/db"
 	"gotest/rbg/server/utils"
 	"log"
@@ -28,25 +29,26 @@ type Obj struct {
 	ClientIP   string //客户端IP
 }
 
-var ch = meke(chan string)
-
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
-	go saveObj(obj)
-	*replay = <-ch
-	return nil
-}
-
-func saveObj(obj *Obj) {
 	insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
 	str_time, _ := time.Parse("2006-01-02 15:04:05", (obj.Date[0:4] + "-" + obj.Date[4:6] + "-" + obj.Date[6:8] + " " + obj.Time))
 
-	db.Dao.Exec(insert_sql, obj.Date, obj.Time, str_time, obj.CardId, obj.SerialNumberInTimes, obj.CurrencyNumber)
+	_, err := db.Dao.Exec(insert_sql, obj.Date, obj.Time, str_time, obj.CardId, obj.SerialNumberInTimes, obj.CurrencyNumber)
+	if err != nil {
+		log.Println("保存到数据库失败：", obj.CurrencyNumber)
+		*replay = config.SAVE_TO_DB_ERROR
+		return nil
+	}
 
 	f, err := os.Create(utils.Server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
 	if err != nil {
 		log.Println("保存bmp失败：", obj.SerialNumber)
+		*replay = config.SAVE_BMP_ERROR
+		return nil
 	}
+	defer f.Close()
 	f.Write(obj.Ima)
-	f.Close()
-	ch <- "ok"
+
+	*replay = "OK"
+	return nil
 }

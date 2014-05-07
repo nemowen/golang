@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+const (
+	SAVE_TO_DB_ERROR string = "1001"
+	SAVE_BMP_ERROR   string = "1002"
+)
+
 type ClientConfig struct {
 	// IP地址与端口
 	SERVER_IP_PORT string
@@ -19,6 +24,8 @@ type ClientConfig struct {
 	RECONNECT_SERVER_TIME time.Duration
 	// 客户端设置名称
 	CLIENT_NAME string
+	// 日志文件保存路径
+	LOG_SAVE_PATH string
 }
 
 type ServerConfig struct {

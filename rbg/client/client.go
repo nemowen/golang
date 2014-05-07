@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"gotest/rbg/config"
 	"io/ioutil"
-	"log"
+	slog "log"
 	"net/rpc"
 	"os"
 	"runtime"
@@ -55,6 +55,9 @@ var (
 	obj *Obj
 	// 配置文件
 	client_preferences config.ClientConfig
+
+	//log
+	log *slog.Logger
 )
 
 func init() {
@@ -65,6 +68,13 @@ func init() {
 		os.Exit(1)
 	}
 	json.Unmarshal(file, &client_preferences)
+
+	log2file, err := os.OpenFile(client_preferences.LOG_SAVE_PATH, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		panic("日志文件读取失败")
+	}
+
+	log = slog.New(log2file, "", slog.Ldate|slog.Ltime)
 
 	//开始连接服务器
 	client = connect()
@@ -179,6 +189,7 @@ func sendDataToServer() {
 
 	var line string
 	var err error
+	replay := new(string)
 	for err == nil {
 		//如果回滚对象为空，正常运行，否则先处理上次失败的对象
 		if rebackObj == nil {
@@ -216,8 +227,6 @@ func sendDataToServer() {
 			obj = rebackObj
 		}
 
-		replay := new(string)
-
 		// call method: 同步方式，似乎效率比go 异步方法高
 		err := client.Call("Obj.SendToServer", obj, replay)
 		if err != nil {
@@ -229,7 +238,13 @@ func sendDataToServer() {
 			client = connect()
 			continue
 		}
-		log.Println(">>>>>> 上传成功", obj.CurrencyNumber, *replay)
+
+		if strings.Contains(config.SAVE_TO_DB_ERROR, *replay) {
+			log.Println(">>>>>> 服务器保存数据失败，10秒后重新上传:", obj.CurrencyNumber)
+			rebackObj = obj
+			time.Sleep(10 * time.Second)
+			continue
+		}
 		// 清除回滚对象
 		rebackObj = nil
 

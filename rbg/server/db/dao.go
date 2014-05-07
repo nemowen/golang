@@ -13,7 +13,7 @@ var Dao *sql.DB
 var once sync.Once
 
 func init() {
-	once.Do(openDB())
+	once.Do(openDB)
 }
 
 // 获取数据库
