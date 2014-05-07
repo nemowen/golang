@@ -7,10 +7,10 @@ import (
 )
 
 func main() {
-	ts := "wenbin"
+	ts := "test123"
 	md5Inst := md5.New()
 	md5Inst.Write([]byte(ts))
-	result := md5Inst.Sum([]byte("we"))
+	result := md5Inst.Sum([]byte(""))
 	fmt.Printf("%X\n", result)
 
 	shaInst := sha1.New()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 func fibonacci(c chan int64) {
@@ -15,6 +16,7 @@ func fibonacci(c chan int64) {
 	}
 }
 func main() {
+	t := time.Now()
 	c := make(chan int64)
 
 	//quit := make(chan int)
@@ -25,6 +27,6 @@ func main() {
 	}
 	//quit <- 0
 
-	fmt.Println("done...")
+	fmt.Println("done...", time.Now().Sub(t))
 
 }
