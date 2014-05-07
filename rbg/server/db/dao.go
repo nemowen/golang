@@ -6,12 +6,14 @@ import (
 	"gotest/rbg/server/utils"
 	"log"
 	"os"
+	"sync"
 )
 
 var Dao *sql.DB
+var once sync.Once
 
 func init() {
-	openDB()
+	once.Do(openDB())
 }
 
 // 获取数据库

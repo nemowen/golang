@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sync"
 )
 
 const (
@@ -14,9 +15,10 @@ const (
 )
 
 var Server_preferences *config.ServerConfig
+var once sync.Once
 
 func init() {
-	loadConfig()
+	once.Do(loadConfig())
 }
 
 //加载配置文件
