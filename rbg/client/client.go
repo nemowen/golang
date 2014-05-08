@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"gotest/rbg/config"
+	"gotest/rbg/logs"
 	"io/ioutil"
-	slog "log"
 	"net/rpc"
 	"os"
 	"runtime"
@@ -57,7 +57,7 @@ var (
 	client_preferences config.ClientConfig
 
 	//log
-	log *slog.Logger
+	log *logs.BeeLogger
 )
 
 func init() {
@@ -69,12 +69,13 @@ func init() {
 	}
 	json.Unmarshal(file, &client_preferences)
 
-	log2file, err := os.OpenFile(client_preferences.LOG_SAVE_PATH, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		panic("日志文件读取失败")
-	}
+	log := logs.NewLogger(1000)
 
-	log = slog.New(log2file, "", slog.Ldate|slog.Ltime)
+	log.SetLogger("file", `{"filename":`+client_preferences.LOG_SAVE_PATH+`}`)
+	log.SetLogger("console", "")
+	log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
+
+	log2file, err := os.OpenFile(client_preferences.LOG_SAVE_PATH, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 
 	//开始连接服务器
 	client = connect()
