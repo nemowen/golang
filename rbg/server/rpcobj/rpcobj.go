@@ -2,9 +2,9 @@ package rpcobj
 
 import (
 	"gotest/rbg/config"
+	"gotest/rbg/logs"
 	"gotest/rbg/server/db"
 	"gotest/rbg/server/utils"
-	"log"
 	"os"
 	"time"
 )
@@ -29,20 +29,30 @@ type Obj struct {
 	ClientIP   string //客户端IP
 }
 
+var log *logs.BeeLogger
+
+func init() {
+	log = logs.NewLogger(1000)
+
+	log.SetLogger("file", `{"filename":"`+utils.Server_preferences.LOG_SAVE_PATH+`"}`)
+	log.SetLogger("console", "")
+	//log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"'sytwgmail%100s.","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
+}
+
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 	insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
 	str_time, _ := time.Parse("2006-01-02 15:04:05", (obj.Date[0:4] + "-" + obj.Date[4:6] + "-" + obj.Date[6:8] + " " + obj.Time))
-
 	_, err := db.Dao.Exec(insert_sql, obj.Date, obj.Time, str_time, obj.CardId, obj.SerialNumberInTimes, obj.CurrencyNumber)
 	if err != nil {
-		log.Println("保存到数据库失败：", obj.CurrencyNumber)
+		log.Error("%s%s", "保存到数据库失败：", obj.CurrencyNumber)
+		log.Error("%s", err)
 		*replay = config.SAVE_TO_DB_ERROR
 		return nil
 	}
 
 	f, err := os.Create(utils.Server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
 	if err != nil {
-		log.Println("保存bmp失败：", obj.SerialNumber)
+		log.Error("保存bmp失败：", obj.SerialNumber)
 		*replay = config.SAVE_BMP_ERROR
 		return nil
 	}

@@ -43,4 +43,6 @@ type ServerConfig struct {
 	DB_MAX_IDLE_CONNS int
 	//最大连接数
 	DB_MAX_OPEN_CONNS int
+	// 日志文件保存路径
+	LOG_SAVE_PATH string
 }
