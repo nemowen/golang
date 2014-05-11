@@ -33,28 +33,31 @@ type Obj struct {
 
 	ClientName string //客户端设备名称
 	ClientIP   string //客户端IP
+	Remark     string //备注
 }
 
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
+	//图像保存
+	f, err := os.Create(server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
+	if err != nil {
+		log.Error("保存bmp失败：%s", obj.SerialNumber)
+		*replay = config.SAVE_BMP_ERROR
+		return nil
+	}
+	defer f.Close()
+	f.Write(obj.Ima)
+
+	//数据存库
 	insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
 	str_time, _ := time.Parse("2006-01-02 15:04:05", (obj.Date[0:4] + "-" + obj.Date[4:6] + "-" + obj.Date[6:8] + " " + obj.Time))
-	_, err := dao.Exec(insert_sql, obj.Date, obj.Time, str_time, obj.CardId, obj.SerialNumberInTimes, obj.CurrencyNumber)
+	_, err = dao.Exec(insert_sql, obj.Date, obj.Time, str_time, obj.CardId, obj.SerialNumberInTimes, obj.CurrencyNumber)
 	if err != nil {
 		log.Error("%s%s", "保存到数据库失败：", obj.CurrencyNumber)
 		log.Error("%s", err)
 		*replay = config.SAVE_TO_DB_ERROR
 		return nil
 	}
-
-	f, err := os.Create(server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
-	if err != nil {
-		log.Error("保存bmp失败：", obj.SerialNumber)
-		*replay = config.SAVE_BMP_ERROR
-		return nil
-	}
-	defer f.Close()
-	f.Write(obj.Ima)
 
 	*replay = "OK"
 	return nil
@@ -72,7 +75,7 @@ var log *logs.BeeLogger
 func init() {
 	loadConfig()
 
-	log = logs.NewLogger(1000)
+	log = logs.NewLogger(100000)
 
 	log.SetLogger("file", `{"filename":"`+server_preferences.LOG_SAVE_PATH+`"}`)
 	log.SetLogger("console", "")
@@ -88,20 +91,24 @@ func main() {
 	u := new(Obj)
 	rpc.Register(u)
 
+	// http：方式
+	// rpc.HandleHTTP()
+	// err := http.ListenAndServe(server_preferences.SERVER_IP_PORT, nil)
+	// checkError(err)
+
+	// tcp 方式
 	tcpAddr, err := net.ResolveTCPAddr("tcp", server_preferences.SERVER_IP_PORT)
 	checkError(err)
 	listener, err := net.ListenTCP("tcp", tcpAddr)
 	checkError(err)
 
 	log.Info("服务已经启动!")
-
-	//rpc.Accept(listener)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Error("rpc.Server: accept Error:%s", err)
 		}
-		log.Info(" IP [ %s ] 已经连接到服务器...", conn.RemoteAddr().String())
+		log.Info("IP [ %s ] 已经连接到服务器...", conn.RemoteAddr().String())
 		go rpc.ServeConn(conn)
 	}
 

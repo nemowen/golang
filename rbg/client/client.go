@@ -32,6 +32,7 @@ type Obj struct {
 
 	ClientName string //客户端设备名称
 	ClientIP   string //客户端IP
+	Remark     string //备注
 }
 
 const (
@@ -58,6 +59,8 @@ var (
 	client_preferences config.ClientConfig
 	//日志记录
 	log *logs.BeeLogger
+	//本地IP
+	ip string
 )
 
 func init() {
@@ -76,6 +79,10 @@ func init() {
 	//日志终端记录
 	log.SetLogger("console", "")
 	//log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
+
+	ip = getLocalIPAddr()
+
+	log.Info("IP:[%s]", ip)
 
 	//开始连接服务器
 	client = connect()
@@ -111,6 +118,7 @@ func main() {
 func connect() (client *rpc.Client) {
 	for client == nil {
 		var e error
+		log.Info("与服务器连接中...")
 		client, e = rpc.Dial("tcp", client_preferences.SERVER_IP_PORT)
 		if e != nil {
 			log.Error("连接服务器失败,请检查网络或服务器是否启动...")
@@ -184,6 +192,8 @@ func sendDataToServer() {
 			obj.SerialNumberInTimes, _ = strconv.Atoi(items[8])
 			obj.CurrencyNumber = items[9]
 			obj.ImaPath = items[10]
+			obj.ClientIP = ip
+			obj.ClientName = client_preferences.CLIENT_NAME
 
 			//读取图像数据
 			f, e := os.Open(obj.ImaPath)
@@ -199,24 +209,47 @@ func sendDataToServer() {
 			obj = rebackObj
 		}
 
-		// call method: 同步方式，似乎效率比go 异步方法高
-		err := client.Call("Obj.SendToServer", obj, replay)
-		if err != nil {
-			//出现网络中断时，回滚并保存当前对象
+		// tcp 方式传输
+		c := make(chan error, 1)
+		go func() { c <- client.Call("Obj.SendToServer", obj, replay) }()
+		select {
+		case err := <-c:
+			if err != nil {
+				rebackObj = obj
+				rebackObj.Remark = "因传输异常:重传对象"
+				log.Error("[%s]上传数据失败...", obj.CurrencyNumber)
+				closeConn(client)
+				client = connect()
+				continue
+			}
+		case <-time.After(3 * time.Second):
 			rebackObj = obj
+			rebackObj.Remark = "因网络异常:重传对象"
 			log.Error("与服务器失去连接...")
+			log.Error("[%s]上传数据失败...", obj.CurrencyNumber)
 			closeConn(client)
-			log.Info("正重新连接中...")
 			client = connect()
 			continue
 		}
 
-		log.Trace("[%s] STATE:%s", obj.CurrencyNumber, *replay)
+		// http 方试传输
+		// err := client.Call("Obj.SendToServer", obj, replay)
+		// if err != nil {
+		// 	//出现网络中断时，回滚并保存当前对象
+		// 	rebackObj = obj
+		// 	log.Error("与服务器失去连接...")
+		// 	closeConn(client)
+		// 	log.Info("正重新连接中...")
+		// 	client = connect()
+		// 	continue
+		// }
 
-		if strings.Contains(config.SAVE_TO_DB_ERROR, *replay) {
-			log.Warn(">>>>>> 服务器保存数据失败，10秒后重新上传:%s", obj.CurrencyNumber)
+		log.Trace("[%s] STATE:%s", obj.CurrencyNumber, *replay)
+		//if  strings.Contains(config.SAVE_TO_DB_ERROR, *replay) {
+		if config.SAVE_TO_DB_ERROR == *replay || config.SAVE_BMP_ERROR == *replay {
+			log.Error(">>>>>> 服务器保存数据失败，1分钟后重新上传:%s", obj.CurrencyNumber)
 			rebackObj = obj
-			time.Sleep(10 * time.Second)
+			time.Sleep(1 * time.Minute)
 			continue
 		}
 		// 清除回滚对象
@@ -266,7 +299,7 @@ func getLocalIPAddr() string {
 	var ip string
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		log.Warn(err.Error())
+		log.Warn("获取IP失败: %s", err.Error())
 	}
 	for _, addr := range addrs {
 		ips := addr.String()
@@ -285,5 +318,5 @@ func getPublicIPAddr() string {
 		return ""
 	}
 	defer conn.Close()
-	return strings.Split(conn.LocalAddr().String(), ":")[0]
+	return strings.Split(conn.RemoteAddr().String(), ":")[0]
 }
