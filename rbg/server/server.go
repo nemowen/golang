@@ -128,7 +128,7 @@ func loadConfig() {
 // 获取数据库
 func openDB() {
 	config := server_preferences
-	db, err := sql.Open("mysql", config.DATABASE_USER_NAME+":"+config.DATABASE_PASSWORD+"@/"+config.DATABASE_NAME+"?charset=utf8")
+	db, err := sql.Open("mysql", config.DATABASE_USER_NAME+":"+config.DATABASE_PASSWORD+"@tcp(127.0.0.1:3306)/"+config.DATABASE_NAME+"?charset=utf8&timeout=60s")
 	if err != nil {
 		errmsg := "错误：连接数据库连接失败!"
 		fmt.Println(errmsg)

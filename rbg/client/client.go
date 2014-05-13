@@ -75,7 +75,7 @@ func init() {
 	//日志初始化
 	log = logs.NewLogger(10000)
 	//日志文件记录
-	log.SetLogger("file", `{"filename":"`+client_preferences.LOG_SAVE_PATH+`"}`)
+	//log.SetLogger("file", `{"filename":"`+client_preferences.LOG_SAVE_PATH+`"}`)
 	//日志终端记录
 	log.SetLogger("console", "")
 	//log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
