@@ -5,8 +5,9 @@ import (
 )
 
 const (
-	SAVE_TO_DB_ERROR string = "1001"
-	SAVE_BMP_ERROR   string = "1002"
+	SAVE_TO_DB_ERROR  string = "1001"
+	SAVE_BMP_ERROR    string = "1002"
+	PERMISSION_DENIED string = "1010"
 )
 
 type ClientConfig struct {

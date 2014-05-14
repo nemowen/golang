@@ -16,6 +16,17 @@ import (
 	"time"
 )
 
+const (
+	// 客户端配置文件路径
+	_server_preferences string = "D:/PROGRAM/GO/Development/src/gotest/rbg/config/Server.Preferences.json"
+)
+
+var (
+	server_preferences *config.ServerConfig // 配置文件实例
+	dao                *sql.DB              // 数据库实例
+	log                *logs.BeeLogger      // 日志实例
+)
+
 // 需要传输数据的结构
 type Obj struct {
 	Date                string    // 日期
@@ -37,19 +48,13 @@ type Obj struct {
 	Remark     string // 备注
 }
 
-const (
-	// 客户端配置文件路径
-	_server_preferences string = "D:/PROGRAM/GO/Development/src/gotest/rbg/config/Server.Preferences.json"
-)
-
-var (
-	server_preferences *config.ServerConfig // 配置文件实例
-	dao                *sql.DB              // 数据库实例
-	log                *logs.BeeLogger      // 日志实例
-)
-
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
+	// if !strings.Contains(server_preferences.ALLOWS_IP, obj.ClientIP) {
+	// 	*replay = config.PERMISSION_DENIED
+	// 	log.Warn("IP [%s] 客户端被拒绝访问！", obj.ClientIP)
+	// 	return nil
+	// }
 	// 图像保存
 	f, err := os.Create(server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
 	if err != nil {
@@ -107,17 +112,12 @@ func main() {
 
 	log.Info("服务已经启动!")
 	for {
-		conn, err := listener.Accept()
+		conn, err := listener.AcceptTCP()
+
 		if err != nil {
 			log.Error("rpc.Server: accept Error:%s", err)
 		}
 		ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
-		// IP验证
-		if !strings.Contains(server_preferences.ALLOWS_IP, ip) {
-			conn.Close()
-			log.Info("IP [ %s ] 未授权，不允许连接服务器...", ip)
-			continue
-		}
 		log.Info("IP [ %s ] 已经成功连接到服务器...", ip)
 		go rpc.ServeConn(conn)
 	}

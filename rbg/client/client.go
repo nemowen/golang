@@ -234,8 +234,11 @@ func sendDataToServer() {
 		// 	continue
 		// }
 
+		if config.PERMISSION_DENIED == *replay {
+			println("Permission denied!")
+			os.Exit(1010)
+		}
 		log.Trace("[%s] STATE:%s", obj.CurrencyNumber, *replay)
-		// if  strings.Contains(config.SAVE_TO_DB_ERROR, *replay) {
 		if config.SAVE_TO_DB_ERROR == *replay || config.SAVE_BMP_ERROR == *replay {
 			log.Error(">>>>>> 服务器保存数据失败，1分钟后重新上传:%s", obj.CurrencyNumber)
 			rebackObj = obj

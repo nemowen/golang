@@ -1,5 +1,5 @@
 {
-	"SERVER_IP_PORT": "192.168.0.109:1314",
+	"SERVER_IP_PORT": "127.0.0.1:1314",
 	"FLAG_FILE_PATH": "D:/EN/flag.ini",
 	"NOTE_FILE_PATH": "D:/EN/note2.ini",
 	"START_WORK_FLAG": "OK",
