@@ -12,6 +12,7 @@ import (
 	"net/rpc"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -71,6 +72,7 @@ const (
 var server_preferences *config.ServerConfig
 var dao *sql.DB
 var log *logs.BeeLogger
+var allowsIP string = "192.168.0.102;127.0.0.1"
 
 func init() {
 	loadConfig()
@@ -108,9 +110,18 @@ func main() {
 		if err != nil {
 			log.Error("rpc.Server: accept Error:%s", err)
 		}
-		log.Info("IP [ %s ] 已经连接到服务器...", conn.RemoteAddr().String())
+		ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
+		//IP验证
+		if !strings.Contains(allowsIP, ip) {
+			conn.Close()
+			log.Info("IP [ %s ] 未授权，不允许连接服务器...", ip)
+			continue
+		}
+		log.Info("IP [ %s ] 已经成功连接到服务器...", ip)
 		go rpc.ServeConn(conn)
 	}
+
+	defer dao.Close()
 
 }
 
@@ -128,7 +139,7 @@ func loadConfig() {
 // 获取数据库
 func openDB() {
 	config := server_preferences
-	db, err := sql.Open("mysql", config.DATABASE_USER_NAME+":"+config.DATABASE_PASSWORD+"@tcp(127.0.0.1:3306)/"+config.DATABASE_NAME+"?charset=utf8&timeout=60s")
+	db, err := sql.Open("mysql", config.DATABASE_USER_NAME+":"+config.DATABASE_PASSWORD+"@tcp(127.0.0.1:3306)/"+config.DATABASE_NAME+"?charset=utf8") //&timeout=60s
 	if err != nil {
 		errmsg := "错误：连接数据库连接失败!"
 		fmt.Println(errmsg)
