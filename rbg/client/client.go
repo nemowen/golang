@@ -285,6 +285,7 @@ func closeFile(f *os.File) {
 	}
 }
 
+// 获取本地IP
 func getLocalIPAddr() string {
 	var ip string
 	addrs, err := net.InterfaceAddrs()
@@ -301,6 +302,7 @@ func getLocalIPAddr() string {
 	return ip
 }
 
+// 获取外网IP
 func getPublicIPAddr() string {
 	conn, err := net.Dial("udp", "google.com:80")
 	if err != nil {
