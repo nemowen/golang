@@ -16,27 +16,27 @@ import (
 )
 
 type Obj struct {
-	Date                string    //日期
-	Time                string    //时间
-	InTime              time.Time //插入时间
-	SerialNumber        string    //流水号
-	Type                string    //交易类型
-	CardId              string    //预留卡号
-	FaceValue           int       //面值
-	Version             int       //版本号
-	CurrencyCode        int       //币种
-	SerialNumberInTimes int       //该钞在本笔交易内序号
-	CurrencyNumber      string    //冠字号码
-	Ima                 []byte    //冠字号图像数据
-	ImaPath             string    //冠字号保存图像路径
+	Date                string    // 日期
+	Time                string    // 时间
+	InTime              time.Time // 插入时间
+	SerialNumber        string    // 流水号
+	Type                string    // 交易类型
+	CardId              string    // 预留卡号
+	FaceValue           int       // 面值
+	Version             int       // 版本号
+	CurrencyCode        int       // 币种
+	SerialNumberInTimes int       // 该钞在本笔交易内序号
+	CurrencyNumber      string    // 冠字号码
+	Ima                 []byte    // 冠字号图像数据
+	ImaPath             string    // 冠字号保存图像路径
 
-	ClientName string //客户端设备名称
-	ClientIP   string //客户端IP
-	Remark     string //备注
+	ClientName string // 客户端设备名称
+	ClientIP   string // 客户端IP
+	Remark     string // 备注
 }
 
 const (
-	//客户端配置文件路径
+	// 客户端配置文件路径
 	CLIENT_PREFERENCES string = "C:/Windows/Client.Preferences.json"
 )
 
@@ -57,14 +57,14 @@ var (
 	obj *Obj
 	// 配置文件
 	client_preferences config.ClientConfig
-	//日志记录
+	// 日志记录
 	log *logs.BeeLogger
-	//本地IP
+	// 本地IP
 	ip string
 )
 
 func init() {
-	//加载配置文件
+	// 加载配置文件
 	file, e := ioutil.ReadFile(CLIENT_PREFERENCES)
 	if e != nil {
 		panic("读取配置文件失败！请与管理员联系！")
@@ -72,19 +72,19 @@ func init() {
 	}
 	json.Unmarshal(file, &client_preferences)
 
-	//日志初始化
+	// 日志初始化
 	log = logs.NewLogger(10000)
-	//日志文件记录
-	//log.SetLogger("file", `{"filename":"`+client_preferences.LOG_SAVE_PATH+`"}`)
-	//日志终端记录
+	// 日志文件记录
+	log.SetLogger("file", `{"filename":"`+client_preferences.LOG_SAVE_PATH+`"}`)
+	// 日志终端记录
 	log.SetLogger("console", "")
-	//log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
+	// log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
 
 	ip = getLocalIPAddr()
 
 	log.Info("IP:[%s]", ip)
 
-	//开始连接服务器
+	// 开始连接服务器
 	client = connect()
 }
 
@@ -114,7 +114,7 @@ func main() {
 	defer closeConn(client)
 }
 
-//连接服务器
+// 连接服务器
 func connect() (client *rpc.Client) {
 	for client == nil {
 		var e error
@@ -155,11 +155,11 @@ func NewWatcher(filepath string, reply chan string, read chan bool) {
 	}
 }
 
-//收集数据到服务器
+// 收集数据到服务器
 func sendDataToServer() {
 	log.Info("正在上传数据...")
 	t = time.Now()
-	//获取note文件
+	// 获取note文件
 	f, e := os.Open(client_preferences.NOTE_FILE_PATH)
 	if e != nil {
 		log.Warn("打开文件失败：%s", client_preferences.NOTE_FILE_PATH)
@@ -171,7 +171,7 @@ func sendDataToServer() {
 	var err error
 	replay := new(string)
 	for err == nil {
-		//如果回滚对象为空，正常运行，否则先处理上次失败的对象
+		// 如果回滚对象为空，正常运行，否则先处理上次失败的对象
 		if rebackObj == nil {
 			line, err = noteBufer.ReadString('\n')
 			if 10 > len(line) {
@@ -195,7 +195,7 @@ func sendDataToServer() {
 			obj.ClientIP = ip
 			obj.ClientName = client_preferences.CLIENT_NAME
 
-			//读取图像数据
+			// 读取图像数据
 			f, e := os.Open(obj.ImaPath)
 			if e != nil {
 				log.Error("读取图像数据失败：[%s] (%s)", obj.SerialNumber, e)
@@ -235,7 +235,7 @@ func sendDataToServer() {
 		// http 方试传输
 		// err := client.Call("Obj.SendToServer", obj, replay)
 		// if err != nil {
-		// 	//出现网络中断时，回滚并保存当前对象
+		// 	// 出现网络中断时，回滚并保存当前对象
 		// 	rebackObj = obj
 		// 	log.Error("与服务器失去连接...")
 		// 	closeConn(client)
@@ -245,7 +245,7 @@ func sendDataToServer() {
 		// }
 
 		log.Trace("[%s] STATE:%s", obj.CurrencyNumber, *replay)
-		//if  strings.Contains(config.SAVE_TO_DB_ERROR, *replay) {
+		// if  strings.Contains(config.SAVE_TO_DB_ERROR, *replay) {
 		if config.SAVE_TO_DB_ERROR == *replay || config.SAVE_BMP_ERROR == *replay {
 			log.Error(">>>>>> 服务器保存数据失败，1分钟后重新上传:%s", obj.CurrencyNumber)
 			rebackObj = obj
@@ -262,7 +262,7 @@ func sendDataToServer() {
 	done()
 }
 
-//完成一笔数据后续操作
+// 完成一笔数据后续操作
 func done() {
 	f, e := os.Create(client_preferences.FLAG_FILE_PATH)
 	if e != nil {
@@ -273,7 +273,7 @@ func done() {
 	f.WriteString("END")
 	defer f.Close()
 
-	//清空数据
+	// 清空数据
 	note, e := os.Create(client_preferences.NOTE_FILE_PATH)
 	if e != nil {
 		log.Info("打开文件失败：", client_preferences.NOTE_FILE_PATH)
