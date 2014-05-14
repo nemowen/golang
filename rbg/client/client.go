@@ -37,30 +37,20 @@ type Obj struct {
 
 const (
 	// 客户端配置文件路径
-	CLIENT_PREFERENCES string = "C:/Windows/Client.Preferences.json"
+	CLIENT_PREFERENCES string = "D:/PROGRAM/GO/Development/src/gotest/rbg/config/Client.Preferences.json"
 )
 
 var (
-	// 连接服务器client实例
-	client *rpc.Client
-	// 采集用时统计
-	t time.Time
-	// 用户接收监控文件的状态
-	reply chan string
-	// 是否可以开始采集数据
-	read chan bool
-	// 需要读取的文件
-	noteBufer *bufio.Reader
-	// 当网络在传输过程中失败时，回滚的对象
-	rebackObj *Obj
-	// 需要传输的对象
-	obj *Obj
-	// 配置文件
-	client_preferences config.ClientConfig
-	// 日志记录
-	log *logs.BeeLogger
-	// 本地IP
-	ip string
+	client             *rpc.Client         // 连接服务器client实例
+	t                  time.Time           // 采集用时统计
+	reply              chan string         // 用户接收监控文件的状态
+	read               chan bool           // 是否可以开始采集数据
+	noteBufer          *bufio.Reader       // 需要读取的文件
+	rebackObj          *Obj                // 当网络在传输过程中失败时，回滚的对象
+	obj                *Obj                // 需要传输的对象
+	client_preferences config.ClientConfig // 配置文件
+	log                *logs.BeeLogger     // 日志记录
+	ip                 string              // 本地IP
 )
 
 func init() {

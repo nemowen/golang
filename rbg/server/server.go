@@ -37,6 +37,17 @@ type Obj struct {
 	Remark     string // 备注
 }
 
+const (
+	// 客户端配置文件路径
+	_server_preferences string = "D:/PROGRAM/GO/Development/src/gotest/rbg/config/Server.Preferences.json"
+)
+
+var (
+	server_preferences *config.ServerConfig // 配置文件实例
+	dao                *sql.DB              // 数据库实例
+	log                *logs.BeeLogger      // 日志实例
+)
+
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 	// 图像保存
@@ -63,15 +74,6 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 	*replay = "OK"
 	return nil
 }
-
-const (
-	// 客户端配置文件路径
-	_server_preferences string = "C:/Windows/Server.Preferences.json"
-)
-
-var server_preferences *config.ServerConfig
-var dao *sql.DB
-var log *logs.BeeLogger
 
 func init() {
 	loadConfig()
