@@ -46,6 +46,4 @@ type ServerConfig struct {
 	DB_MAX_OPEN_CONNS int
 	// 日志文件保存路径
 	LOG_SAVE_PATH string
-	// 允许连接的IP
-	ALLOWS_IP string
 }

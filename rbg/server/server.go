@@ -50,11 +50,6 @@ type Obj struct {
 
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
-	// if !strings.Contains(server_preferences.ALLOWS_IP, obj.ClientIP) {
-	// 	*replay = config.PERMISSION_DENIED
-	// 	log.Warn("IP [%s] 客户端被拒绝访问！", obj.ClientIP)
-	// 	return nil
-	// }
 	// 图像保存
 	f, err := os.Create(server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
 	if err != nil {
@@ -95,14 +90,17 @@ func init() {
 func main() {
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
+	defer dao.Close()
 
 	u := new(Obj)
 	rpc.Register(u)
 
 	// http：方式
+	// exit:=make(chan bool)
 	// rpc.HandleHTTP()
 	// err := http.ListenAndServe(server_preferences.SERVER_IP_PORT, nil)
 	// checkError(err)
+	// <-exit
 
 	// tcp 方式
 	tcpAddr, err := net.ResolveTCPAddr("tcp", server_preferences.SERVER_IP_PORT)
@@ -113,7 +111,6 @@ func main() {
 	log.Info("服务已经启动!")
 	for {
 		conn, err := listener.AcceptTCP()
-
 		if err != nil {
 			log.Error("rpc.Server: accept Error:%s", err)
 		}
@@ -121,8 +118,6 @@ func main() {
 		log.Info("IP [ %s ] 已经成功连接到服务器...", ip)
 		go rpc.ServeConn(conn)
 	}
-
-	defer dao.Close()
 
 }
 
