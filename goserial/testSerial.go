@@ -1,47 +1,38 @@
 package main
 
 import (
-	"bytes"
+	//"bytes"
 	"github.com/tarm/goserial"
 	"io"
 	"log"
 	"runtime"
 )
 
-func main() {
+var (
+	com    io.ReadWriteCloser
+	buffer = make([]byte, 128)
+)
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
-	c := &serial.Config{Name: "COM2", Baud: 128000}
-	s, err := serial.OpenPort(c)
+func init() {
+	c := &serial.Config{Name: "COM1", Baud: 128000}
+	var err error
+	com, err = serial.OpenPort(c)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	exit := make(chan bool, 1)
-	ioch := make(chan []byte, 128)
-
-	go readData(&ioch, s)
-
-	go func(ioch *chan []byte) {
-		for {
-			a := <-*ioch
-			log.Println(string(a))
-		}
-
-		//exit <- true
-	}(&ioch)
-
-	<-exit
-
 }
 
-func readData(ioch *chan []byte, s io.ReadWriteCloser) {
-	for {
-		data := make([]byte, 1)
-		_, err := s.Read(data)
-		if err != nil {
-			log.Fatal(err)
-		}
-		*ioch <- data
+func main() {
+	runtime.GOMAXPROCS(2)
+	exit := make(chan bool)
+
+	<-exit
+}
+
+func read() {
+	n, err := com.Read(buffer)
+	if err != nil {
+		log.Fatal(err)
 	}
+	log.Println(n, string(buffer[0:n]))
 }
