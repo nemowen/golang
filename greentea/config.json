@@ -1,0 +1,7 @@
+{
+	"ComName": "COM2",
+	"Baud": 128000,
+	"IniSavePath": "D:/SNRData/SNRinfo.ini",
+	"BmpSavePath": "D:/SNRData/BMP",
+	"BmpDaysToKeep": 2
+}
