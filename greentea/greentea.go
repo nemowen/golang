@@ -87,20 +87,17 @@ func parse() {
 			fmt.Printf("%s %d %d\n", buffer, len(buffer), cap(buffer))
 			now := time.Now().Format("20060102")
 
-			// 每日清空交易笔数
-			if now != currentDay {
+			if now != currentDay { // 每日清空交易笔数
 				countTimesDay = 0
 			}
 
-			// 统计交易笔数
-			countTimesDay += 1
+			countTimesDay += 1 // 统计交易笔数
 
 			ctd := strconv.Itoa(countTimesDay)
 			path := filepath.Join(config.BmpSavePath, currentDay, ctd)
 			os.MkdirAll(path, 0666)
 
-			// 测试写入BMP
-			for i := 1; i <= 10; i++ {
+			for i := 1; i <= 10; i++ { // 测试写入BMP
 				files := filepath.Join(path, strconv.Itoa(i)+".bmp")
 				fmt.Println(files)
 				file, e := os.OpenFile(files, os.O_CREATE|os.O_WRONLY, 0666)
@@ -110,6 +107,7 @@ func parse() {
 				file.Write(buffer)
 				file.Close()
 			}
+
 		case <-time.After(60 * time.Second): // 定时检查过期数据
 			files, err := ioutil.ReadDir(config.BmpSavePath)
 			if err != nil {
