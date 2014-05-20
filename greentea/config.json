@@ -3,5 +3,5 @@
 	"Baud": 128000,
 	"IniSavePath": "D:/SNRData/SNRinfo.ini",
 	"BmpSavePath": "D:/SNRData/BMP",
-	"BmpDaysToKeep": 2
+	"BmpDaysToKeep": 1
 }
