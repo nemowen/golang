@@ -48,7 +48,7 @@ func init() {
 
 	c := &serial.Config{Name: config.ComName, Baud: config.Baud}
 	var err error
-	com, err = serial.OpenPort(c)
+	com, err = OpenPort(c)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -66,35 +66,6 @@ func main() {
 	<-exit
 }
 
-func parse() {
-	for {
-		select {
-		case <-ok:
-			fmt.Printf("%s %d %d\n", buffer, len(buffer), cap(buffer))
-		case <-time.After(5 * time.Second):
-			countTimesDay += 1
-			currentDay = time.Now().Format("20060102")
-			ctd := strconv.Itoa(countTimesDay)
-			path := filepath.Join(config.BmpSavePath, currentDay, ctd)
-			os.MkdirAll(path, 0666)
-
-			//os.Stat(name)
-			//fmt.Println(path)
-			for i := 1; i <= 10; i++ {
-				files := filepath.Join(path, strconv.Itoa(i)+".bmp")
-				fmt.Println(files)
-				file, e := os.OpenFile(files, os.O_CREATE|os.O_WRONLY, 0666)
-				if e != nil {
-					fmt.Println(e)
-				}
-				file.Write(buffer)
-				file.Close()
-			}
-
-		}
-	}
-}
-
 func read() {
 	var inbyte = make([]byte, 1024)
 	for {
@@ -105,6 +76,57 @@ func read() {
 		buffer = append(buffer, inbyte[0:n]...)
 		if bytes.Contains(buffer, []byte(END_FLAG)) {
 			ok <- 1
+		}
+	}
+}
+
+func parse() {
+	for {
+		select {
+		case <-ok:
+			fmt.Printf("%s %d %d\n", buffer, len(buffer), cap(buffer))
+			now := time.Now().Format("20060102")
+
+			// 每日清空交易笔数
+			if now != currentDay {
+				countTimesDay = 0
+			}
+
+			// 统计交易笔数
+			countTimesDay += 1
+
+			ctd := strconv.Itoa(countTimesDay)
+			path := filepath.Join(config.BmpSavePath, currentDay, ctd)
+			os.MkdirAll(path, 0666)
+
+			// 测试写入BMP
+			for i := 1; i <= 10; i++ {
+				files := filepath.Join(path, strconv.Itoa(i)+".bmp")
+				fmt.Println(files)
+				file, e := os.OpenFile(files, os.O_CREATE|os.O_WRONLY, 0666)
+				if e != nil {
+					fmt.Println(e)
+				}
+				file.Write(buffer)
+				file.Close()
+			}
+		case <-time.After(60 * time.Second): // 定时检查过期数据
+			files, err := ioutil.ReadDir(config.BmpSavePath)
+			if err != nil {
+				fmt.Println(err)
+			}
+			for i, file := range files {
+				filename := file.Name()
+				t, e := time.Parse("20060102", filename)
+				if err != nil {
+					fmt.Println("目录名称不正确" + err)
+					continue
+				}
+				if time.Now().Sub(t.Add(config.BmpDaysToKeep*24*time.Hour)) > 0 {
+					os.RemoveAll(filepath.Join(config.BmpSavePath, filename))
+				}
+			}
+
 		}
 	}
 }

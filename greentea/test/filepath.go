@@ -1,21 +1,12 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
+	"time"
 )
 
 func main() {
 
-	filepath.Walk("D:/", func(path string, f os.FileInfo, err error) error {
-		if f == nil {
-			return err
-		}
-		if f.IsDir() {
-			return err
-		}
-		println(f.Name())
-		return nil
-	})
-
+	t, _ := time.Parse("20060102", "20140519")
+	//println(t.Add(1 * time.Hour).String())
+	println(time.Now().Sub(t.Add(2*24*time.Hour)) > 0)
 }
