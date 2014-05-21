@@ -25,28 +25,31 @@ type configObj struct {
 }
 
 const (
-	jsons         string = "D:/PROGRAM/GO/Development/src/gotest/greentea/config.json" // 客户端配置文件路径
-	DATA_END_FLAG string = "*s[OCR_End]s*"                                             // 本笔结束
+	jsons string = "D:/PROGRAM/GO/Development/src/gotest/greentea/config.json" // 客户端配置文件路径
 
-	I_S_DATE_FLAG, I_E_DATE_FLAG string = "*d{", "}d*"   //数据日期标识位
-	I_S_TIME_FLAG, I_E_TIME_FLAG string = "*t{", "}t*"   //数据时间标识位
-	I_S_NO_FLAG, I_E_NO_FLAG     string = "*no{", "}no*" //数据顺序号标识位
-	I_S_BN_FLAG, I_E_BN_FLAG     string = "*bn{", "}bn*" //数据冠字号标识位
-
-	M_S_DATE_FLAG, M_E_DATE_FLAG string = "*d{", "}d*" //机器状态：数据日期标识位
-	M_S_TIME_FLAG, M_E_TIME_FLAG string = "*t{", "}t*" //机器状态：数据时间标识位
+	DATA_S_FLAG, DATA_E_FLAG     = "*s[start]s*", "*s[output_end]s*" // 本笔结束
+	I_S_DATE_FLAG, I_E_DATE_FLAG = "*d{", "}d*"                      //数据日期标识位
+	I_S_TIME_FLAG, I_E_TIME_FLAG = "*t{", "}t*"                      //数据时间标识位
+	I_S_NO_FLAG, I_E_NO_FLAG     = "*no{", "}no*"                    //数据顺序号标识位
+	I_S_BN_FLAG, I_E_BN_FLAG     = "*bn{", "}bn*"                    //数据冠字号标识位
+	M_S_DATE_FLAG, M_E_DATE_FLAG = "*d[", "]d*"                      //机器状态：数据日期标识位
+	M_S_TIME_FLAG, M_E_TIME_FLAG = "*t[", "]t*"                      //机器状态：数据时间标识位
 
 	STATUS_INIT      int = 1 // 初始化工作
 	STATUS_READ_DONE int = 2 // 读取完成
+
+	LineBreak = "\r\n" // windows 换行
 )
 
 var (
-	com           io.ReadWriteCloser
-	buffer        = make([]byte, 0, 6<<10)
-	ok            chan int
-	config        *configObj
-	countTimesDay int    // 当天交易次数
-	currentDay    string // 今天日期
+	com           io.ReadWriteCloser       // 串口对象
+	buffer        = make([]byte, 0, 6<<10) // 缓冲区
+	ok            chan int                 // 信号量
+	config        *configObj               // 配置文件
+	countTimesDay int                      // 当天交易次数
+	currentDay    string                   // 今天日期
+	bmpEndFlag    string                   // bmp数据结束标识
+	snrinfo       *os.File
 )
 
 func init() {
@@ -59,10 +62,10 @@ func init() {
 	json.Unmarshal(file, config)
 
 	// 检查并设置默认值
-	if config.IniSavePath == nil {
+	if config.IniSavePath == "" {
 		config.IniSavePath = "C:/CNRData"
 	}
-	if config.BmpSavePath == nil {
+	if config.BmpSavePath == "" {
 		config.BmpSavePath = "D:/SNRData"
 	}
 
@@ -97,11 +100,12 @@ func read() {
 		if err != nil {
 			fmt.Printf("%s", err)
 		}
+
 		buffer = append(buffer, inbyte[0:n]...)
-		if bytes.Contains(buffer, "*s[start]s*") {
+		if bytes.Contains(buffer, []byte(DATA_S_FLAG)) {
 			ok <- STATUS_INIT
 		}
-		if bytes.Contains(buffer, []byte(DATA_END_FLAG)) {
+		if bytes.Contains(buffer, []byte(DATA_E_FLAG)) {
 			ok <- STATUS_READ_DONE
 		}
 	}
@@ -113,6 +117,19 @@ func parse() {
 		case status := <-ok:
 			//fmt.Printf("%s %d %d\n", buffer, len(buffer), cap(buffer))
 			if STATUS_INIT == status {
+
+				info, inierr := os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
+				if inierr != nil {
+					fmt.Println("创建SNRinfo.ini文件失败！", inierr)
+				}
+				snrinfo = info
+				snrinfo.WriteString("[Cash_Info]" + LineBreak)
+				snrinfo.WriteString("LEVEL4_COUNT=x" + LineBreak)
+				snrinfo.WriteString("LEVEL3_COUNT=0" + LineBreak)
+				snrinfo.WriteString("LEVEL2_COUNT=0" + LineBreak)
+				snrinfo.WriteString("OperationTime=" + time.Now().Format("2006-01-02 15:04:05") + LineBreak)
+				snrinfo.WriteString(LineBreak)
+
 				now := time.Now().Format("20060102")
 				if now != currentDay { // 每日清空交易笔数
 					countTimesDay = 0
@@ -120,28 +137,116 @@ func parse() {
 				}
 
 			} else if STATUS_READ_DONE == status {
-				inifile := os.OpenFile(config.IniSavePath, os.O_WRONLY|os.O_CREATE, 0666)
+				//logfile := os.OpenFile(config.IniSavePath, os.O_WRONLY|os.O_CREATE, 0666)
 
-				// 解析开始
+				// create directory
+				countTimesDay += 1 // 统计交易笔数
+				ctd := strconv.Itoa(countTimesDay)
+				path := filepath.Join(config.BmpSavePath, currentDay, ctd)
+				os.MkdirAll(path, 0666)
 
+				// parse info date
+				i_date_s_index := bytes.Index(buffer, []byte(I_S_DATE_FLAG))
+				i_date_e_index := bytes.Index(buffer, []byte(I_E_DATE_FLAG))
+				i_date_data := buffer[i_date_s_index+len(I_S_DATE_FLAG) : i_date_e_index]
+
+				fmt.Println(string(i_date_data))
+
+				// parse info time
+				i_time_s_index := bytes.Index(buffer, []byte(I_S_TIME_FLAG))
+				i_time_e_index := bytes.Index(buffer, []byte(I_E_TIME_FLAG))
+				i_time_data := buffer[i_time_s_index+len(I_S_TIME_FLAG) : i_time_e_index]
+
+				fmt.Println(string(i_time_data))
+
+				// to start parse data
+				n := bytes.Count(buffer, []byte(I_E_NO_FLAG))
+				fmt.Println("跑", n, "次")
+				for i := 0; i < n; i++ {
+
+					snrinfo.WriteString("[LEVEL4_001]" + LineBreak)               // 数据还未明确
+					snrinfo.WriteString("Index=" + strconv.Itoa(i+1) + LineBreak) // 数据还未明确
+					snrinfo.WriteString("Value=100" + LineBreak)
+
+					// parse info no
+					i_no_s_index := bytes.Index(buffer, []byte(I_S_NO_FLAG))
+					i_no_e_index := bytes.Index(buffer, []byte(I_E_NO_FLAG))
+					i_no_data := buffer[i_no_s_index+len(I_S_NO_FLAG) : i_no_e_index]
+
+					i_no_data_str := string(i_no_data) // 给后面使用
+
+					bmpfile := filepath.Join(path, i_no_data_str+".bmp")
+
+					// clear no data
+					buffer = bytes.Replace(buffer, buffer[i_no_s_index:i_no_e_index+len(I_E_NO_FLAG)], []byte(""), 1)
+
+					// parse info bn
+					i_bn_s_index := bytes.Index(buffer, []byte(I_S_BN_FLAG))
+					i_bn_e_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
+					i_bn_data := buffer[i_bn_s_index+len(I_S_BN_FLAG) : i_bn_e_index]
+
+					snrinfo.WriteString("SerialNumber=" + string(i_bn_data) + LineBreak)
+
+					// clear bn data
+					buffer = bytes.Replace(buffer, buffer[i_bn_s_index:i_bn_e_index], []byte(""), 1)
+
+					// parse info bmp
+					if i < (n - 1) { // bmpEndFlag:= "*bn{02}bn*"
+						num, _ := strconv.Atoi(string(i_no_data_str))
+						num = num + 1
+						numstr := strconv.Itoa(num)
+						if num < 10 {
+							numstr = "0" + numstr
+						}
+						bmpEndFlag = I_S_NO_FLAG + numstr + I_E_NO_FLAG
+					} else { // bmpEndFlag:= "*s[output_end]s*"
+						bmpEndFlag = DATA_E_FLAG
+					}
+					fmt.Println("bmpEndFlag:", bmpEndFlag)
+					i_bmp_s_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
+					fmt.Println("i_bmp_s_index:", i_bmp_s_index)
+					i_bmp_e_index := bytes.Index(buffer, []byte(bmpEndFlag))
+					fmt.Println("i_bmp_e_index:", i_bmp_e_index)
+					i_bmp_data := buffer[i_bmp_s_index+len(I_E_BN_FLAG) : i_bmp_e_index]
+
+					// write bmp to file
+					fmt.Println(bmpfile)
+					snrinfo.WriteString("ImageFile=" + bmpfile + LineBreak)
+
+					file, e := os.OpenFile(bmpfile, os.O_CREATE|os.O_WRONLY, 0666)
+					if e != nil {
+						fmt.Println("创建bmp文件失败：" + bmpfile)
+					}
+					file.Write(i_bmp_data)
+					if file != nil {
+						file.Close()
+					}
+
+					// clear bmp data
+					buffer = bytes.Replace(buffer, buffer[i_bmp_s_index:i_bmp_e_index], []byte(""), 1)
+
+				}
+
+				buffer = buffer[0:0]
 			}
 
 		case <-time.After(5 * time.Second):
-			countTimesDay += 1 // 统计交易笔数
-			ctd := strconv.Itoa(countTimesDay)
-			path := filepath.Join(config.BmpSavePath, currentDay, ctd)
-			os.MkdirAll(path, 0666)
+			fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
+			// 	countTimesDay += 1 // 统计交易笔数
+			// 	ctd := strconv.Itoa(countTimesDay)
+			// 	path := filepath.Join(config.BmpSavePath, currentDay, ctd)
+			// 	os.MkdirAll(path, 0666)
 
-			for i := 1; i <= 10; i++ { // 测试写入BMP
-				files := filepath.Join(path, strconv.Itoa(i)+".bmp")
-				fmt.Println(files)
-				file, e := os.OpenFile(files, os.O_CREATE|os.O_WRONLY, 0666)
-				if e != nil {
-					fmt.Println(e)
-				}
-				file.Write(buffer)
-				file.Close()
-			}
+			// 	for i := 1; i <= 10; i++ { // 测试写入BMP
+			// 		files := filepath.Join(path, strconv.Itoa(i)+".bmp")
+			// 		fmt.Println(files)
+			// 		file, e := os.OpenFile(files, os.O_CREATE|os.O_WRONLY, 0666)
+			// 		if e != nil {
+			// 			fmt.Println(e)
+			// 		}
+			// 		file.Write(buffer)
+			// 		file.Close()
+			// 	}
 
 		}
 	}
@@ -151,7 +256,7 @@ func bmpClear() error {
 	// 定时检查过期数据
 	files, err := ioutil.ReadDir(config.BmpSavePath)
 	if err != nil {
-		return errors.New("未找到BMP目录：" + err)
+		return errors.New("未找到BMP目录：" + err.Error())
 	}
 	for _, file := range files {
 		filename := file.Name()
