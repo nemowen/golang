@@ -29,12 +29,12 @@ const (
 	jsons string = "D:/PROGRAM/GO/Development/src/gotest/greentea/config.json" // 客户端配置文件路径
 
 	DATA_S_FLAG, DATA_E_FLAG     = "*s[start]s*", "*s[output_end]s*" // 本笔结束
-	I_S_DATE_FLAG, I_E_DATE_FLAG = "*d{", "}d*"                      //数据日期标识位
-	I_S_TIME_FLAG, I_E_TIME_FLAG = "*t{", "}t*"                      //数据时间标识位
-	I_S_NO_FLAG, I_E_NO_FLAG     = "*no{", "}no*"                    //数据顺序号标识位
-	I_S_BN_FLAG, I_E_BN_FLAG     = "*bn{", "}bn*"                    //数据冠字号标识位
-	M_S_DATE_FLAG, M_E_DATE_FLAG = "*d[", "]d*"                      //机器状态：数据日期标识位
-	M_S_TIME_FLAG, M_E_TIME_FLAG = "*t[", "]t*"                      //机器状态：数据时间标识位
+	I_S_DATE_FLAG, I_E_DATE_FLAG = "*d{", "}d*"                      // 数据日期标识位
+	I_S_TIME_FLAG, I_E_TIME_FLAG = "*t{", "}t*"                      // 数据时间标识位
+	I_S_NO_FLAG, I_E_NO_FLAG     = "*no{", "}no*"                    // 数据顺序号标识位
+	I_S_BN_FLAG, I_E_BN_FLAG     = "*bn{", "}bn*"                    // 数据冠字号标识位
+	M_S_DATE_FLAG, M_E_DATE_FLAG = "*d[", "]d*"                      // 机器状态：数据日期标识位
+	M_S_TIME_FLAG, M_E_TIME_FLAG = "*t[", "]t*"                      // 机器状态：数据时间标识位
 
 	STATUS_INIT      int = 1 // 初始化工作
 	STATUS_READ_DONE int = 2 // 读取完成
@@ -62,14 +62,6 @@ func init() {
 		os.Exit(1)
 	}
 	json.Unmarshal(file, config)
-
-	// 检查并设置默认值
-	if config.IniSavePath == "" {
-		config.IniSavePath = "C:/CNRData"
-	}
-	if config.BmpSavePath == "" {
-		config.BmpSavePath = "D:/SNRData"
-	}
 
 	// 日志初始化
 	log = logs.NewLogger(10000)
@@ -125,6 +117,7 @@ func parse() {
 			//fmt.Printf("%s %d %d\n", buffer, len(buffer), cap(buffer))
 			if STATUS_INIT == status {
 
+				// open or create SNRinfo.ini
 				info, err := os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
 				if err != nil {
 					fmt.Println("创建SNRinfo.ini文件失败！", err)
@@ -143,6 +136,7 @@ func parse() {
 					currentDay = now
 				}
 
+				// open or create a log file
 				snrlog, err = os.OpenFile(filepath.Join(config.LogSavePath, now+".log"),
 					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 
@@ -154,6 +148,8 @@ func parse() {
 				ctd := strconv.Itoa(countTimesDay)
 				path := filepath.Join(config.BmpSavePath, currentDay, ctd)
 				os.MkdirAll(path, 0666)
+
+				// parse machine state
 
 				// parse info date
 				i_date_s_index := bytes.Index(buffer, []byte(I_S_DATE_FLAG))
