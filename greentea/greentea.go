@@ -21,6 +21,7 @@ type configObj struct {
 	Baud          int           // 波特率
 	IniSavePath   string        // ini文件保存路径
 	BmpSavePath   string        // bmp保存路径
+	LogSavePath   string        // log文件记录
 	BmpDaysToKeep time.Duration // bmp保存天数
 }
 
@@ -49,7 +50,8 @@ var (
 	countTimesDay int                      // 当天交易次数
 	currentDay    string                   // 今天日期
 	bmpEndFlag    string                   // bmp数据结束标识
-	snrinfo       *os.File
+	snrinfo       *os.File                 // ini文件对象
+	snrlog        *os.File                 // 日志记录
 )
 
 func init() {
@@ -69,6 +71,11 @@ func init() {
 		config.BmpSavePath = "D:/SNRData"
 	}
 
+	// 日志初始化
+	log = logs.NewLogger(10000)
+	// 日志文件记录
+	log.SetLogger("file", `{"filename":"`+config.LogSavePath+`"}`)
+
 	c := &serial.Config{Name: config.ComName, Baud: config.Baud}
 	var err error
 	com, err = serial.OpenPort(c)
@@ -82,7 +89,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	ok = make(chan int, 50)
 	exit := make(chan bool)
-	bmpClearTask := tools.NewTask("bmpClearTask", "50 55 22 * * * ", bmpClear)
+	bmpClearTask := tools.NewTask("bmpClearTask", "59 59 23 * * * ", bmpClear)
 	tools.AddTask("bmpClearTask", bmpClearTask)
 	tools.StartTask()
 	defer tools.StopTask()
@@ -118,9 +125,9 @@ func parse() {
 			//fmt.Printf("%s %d %d\n", buffer, len(buffer), cap(buffer))
 			if STATUS_INIT == status {
 
-				info, inierr := os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
-				if inierr != nil {
-					fmt.Println("创建SNRinfo.ini文件失败！", inierr)
+				info, err := os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
+				if err != nil {
+					fmt.Println("创建SNRinfo.ini文件失败！", err)
 				}
 				snrinfo = info
 				snrinfo.WriteString("[Cash_Info]" + LineBreak)
@@ -136,6 +143,9 @@ func parse() {
 					currentDay = now
 				}
 
+				snrlog, err = os.OpenFile(filepath.Join(config.LogSavePath, now+".log"),
+					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+
 			} else if STATUS_READ_DONE == status {
 				//logfile := os.OpenFile(config.IniSavePath, os.O_WRONLY|os.O_CREATE, 0666)
 
@@ -150,18 +160,13 @@ func parse() {
 				i_date_e_index := bytes.Index(buffer, []byte(I_E_DATE_FLAG))
 				i_date_data := buffer[i_date_s_index+len(I_S_DATE_FLAG) : i_date_e_index]
 
-				fmt.Println(string(i_date_data))
-
 				// parse info time
 				i_time_s_index := bytes.Index(buffer, []byte(I_S_TIME_FLAG))
 				i_time_e_index := bytes.Index(buffer, []byte(I_E_TIME_FLAG))
 				i_time_data := buffer[i_time_s_index+len(I_S_TIME_FLAG) : i_time_e_index]
 
-				fmt.Println(string(i_time_data))
-
 				// to start parse data
 				n := bytes.Count(buffer, []byte(I_E_NO_FLAG))
-				fmt.Println("跑", n, "次")
 				for i := 0; i < n; i++ {
 
 					snrinfo.WriteString("[LEVEL4_001]" + LineBreak)               // 数据还未明确
@@ -202,15 +207,11 @@ func parse() {
 					} else { // bmpEndFlag:= "*s[output_end]s*"
 						bmpEndFlag = DATA_E_FLAG
 					}
-					fmt.Println("bmpEndFlag:", bmpEndFlag)
 					i_bmp_s_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
-					fmt.Println("i_bmp_s_index:", i_bmp_s_index)
 					i_bmp_e_index := bytes.Index(buffer, []byte(bmpEndFlag))
-					fmt.Println("i_bmp_e_index:", i_bmp_e_index)
 					i_bmp_data := buffer[i_bmp_s_index+len(I_E_BN_FLAG) : i_bmp_e_index]
 
 					// write bmp to file
-					fmt.Println(bmpfile)
 					snrinfo.WriteString("ImageFile=" + bmpfile + LineBreak)
 
 					file, e := os.OpenFile(bmpfile, os.O_CREATE|os.O_WRONLY, 0666)
@@ -230,8 +231,8 @@ func parse() {
 				buffer = buffer[0:0]
 			}
 
-		case <-time.After(5 * time.Second):
-			fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
+			//case <-time.After(5 * time.Second):
+			//	fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
 			// 	countTimesDay += 1 // 统计交易笔数
 			// 	ctd := strconv.Itoa(countTimesDay)
 			// 	path := filepath.Join(config.BmpSavePath, currentDay, ctd)

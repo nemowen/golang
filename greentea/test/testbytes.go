@@ -3,7 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"strconv"
+	"runtime"
+	//"strconv"
 )
 
 func main() {
@@ -22,7 +23,5 @@ func main() {
 	change[1] = '美'
 	fmt.Printf("%d %s\n", len(change), string(change))
 
-	i, _ :=
-
-		fmt.Println(i)
+	runtime.GC()
 }
