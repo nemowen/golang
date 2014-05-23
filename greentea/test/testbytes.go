@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"runtime"
+	//"runtime"
 	//"strconv"
+	"os"
 )
 
 func main() {
@@ -23,5 +24,8 @@ func main() {
 	change[1] = '美'
 	fmt.Printf("%d %s\n", len(change), string(change))
 
-	runtime.GC()
+	e := os.RemoveAll("D:/Program Files/QvodPlayer")
+	if e != nil {
+		fmt.Println(e)
+	}
 }
