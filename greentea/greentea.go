@@ -22,7 +22,9 @@ type configObj struct {
 	IniSavePath   string        // ini文件保存路径
 	BmpSavePath   string        // bmp保存路径
 	LogSavePath   string        // log文件记录
+	LogDaysToKeep time.Duration // log保存天数
 	BmpDaysToKeep time.Duration // bmp保存天数
+
 }
 
 const (
@@ -86,7 +88,9 @@ func main() {
 	readable = make(chan byte, 1)
 	exit := make(chan bool)
 	bmpClearTask := tools.NewTask("bmpClearTask", "59 59 23 * * * ", bmpClear)
+	logClearTask := tools.NewTask("logClearTask", "59 59 01 * * * ", logClear)
 	tools.AddTask("bmpClearTask", bmpClearTask)
+	tools.AddTask("logClearTask", logClearTask)
 	tools.StartTask()
 	defer tools.StopTask()
 
@@ -274,25 +278,12 @@ func parse() {
 			endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
 			buffer = buffer[endIndex+len(DATA_E_FLAG):]
 			logBuffer = logBuffer[0:0]
+			time.Sleep(30 * time.Second)
 			fmt.Println("done...")
 
-		case <-time.After(5 * time.Second):
+		case <-time.After(10 * time.Second):
 			fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
-			// 	countTimesDay += 1 // 统计交易笔数
-			// 	ctd := strconv.Itoa(countTimesDay)
-			// 	path := filepath.Join(config.BmpSavePath, currentDay, ctd)
-			// 	os.MkdirAll(path, 0666)
-
-			// 	for i := 1; i <= 10; i++ { // 测试写入BMP
-			// 		files := filepath.Join(path, strconv.Itoa(i)+".bmp")
-			// 		fmt.Println(files)
-			// 		file, e := os.OpenFile(files, os.O_CREATE|os.O_WRONLY, 0666)
-			// 		if e != nil {
-			// 			fmt.Println(e)
-			// 		}
-			// 		file.Write(buffer)
-			// 		file.Close()
-			//	}
+			fmt.Println("超时了")
 
 		}
 	}
@@ -313,6 +304,29 @@ func bmpClear() error {
 		}
 		if time.Now().Sub(t.Add(config.BmpDaysToKeep*24*time.Hour)) > 0 {
 			os.RemoveAll(filepath.Join(config.BmpSavePath, filename))
+		}
+	}
+	return nil
+}
+
+func logClear() error {
+	// 定时检查过期数据
+	fmt.Println("ok?")
+	files, err := ioutil.ReadDir(config.LogSavePath)
+	if err != nil {
+		return errors.New("未找到Log目录：" + err.Error())
+	}
+	for _, file := range files {
+		filename := file.Name()
+		t, e := time.Parse("20060102", string(filename[0:8]))
+		if e != nil {
+			fmt.Println("日志名称不正确", e)
+			continue
+		}
+		if time.Now().Sub(t.Add(config.LogDaysToKeep*24*time.Hour)) > 0 {
+			fmt.Println("to ok")
+			os.Remove(filepath.Join(config.LogSavePath, filename))
+			fmt.Println("ok")
 		}
 	}
 	return nil
