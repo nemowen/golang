@@ -28,8 +28,6 @@ type configObj struct {
 }
 
 const (
-	jsons string = "D:/PROGRAM/GO/Development/src/gotest/greentea/config.json" // 客户端配置文件路径
-
 	DATA_S_FLAG, DATA_E_FLAG     = "*s[start]s*", "*s[output_end]s*" // 本笔结束
 	MSG_S_FLAG, MSG_E_FLAG       = "*s[", "]s*"                      // 机器信息标识位
 	I_S_DATE_FLAG, I_E_DATE_FLAG = "*d{", "}d*"                      // 数据日期标识位
@@ -63,11 +61,16 @@ var (
 	endIndex      int                      // 结束索引
 	inited        bool                     // 是否已经初始化
 	logBuffer     []byte                   // log临时缓冲区
+
 )
 
 func init() {
 	config = new(configObj)
-	file, e := ioutil.ReadFile(jsons)
+	var pwd string
+	pwd, err = os.Getwd()
+	pwd = filepath.Join(pwd, "config.json")
+	fmt.Println(pwd)
+	file, e := ioutil.ReadFile(pwd)
 	if e != nil {
 		fmt.Println("读取配置文件失败!请与管理员联系!")
 		os.Exit(1)
@@ -76,7 +79,7 @@ func init() {
 	c := &serial.Config{Name: config.ComName, Baud: config.Baud}
 	com, err = serial.OpenPort(c)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("打开串口", config.ComName, "失败:", err)
 		os.Exit(2)
 	}
 	err = nil
@@ -129,12 +132,6 @@ func parse() {
 				fmt.Println("创建SNRinfo.ini文件失败！", err)
 			}
 			err = nil
-			snrinfo.WriteString("[Cash_Info]" + LineBreak)
-			snrinfo.WriteString("LEVEL4_COUNT=x" + LineBreak)
-			snrinfo.WriteString("LEVEL3_COUNT=0" + LineBreak)
-			snrinfo.WriteString("LEVEL2_COUNT=0" + LineBreak)
-			snrinfo.WriteString("OperationTime=" + time.Now().Format("2006-01-02 15:04:05") + LineBreak)
-			snrinfo.WriteString(LineBreak)
 
 			now := time.Now().Format("20060102")
 			if now != currentDay { // 每日清空交易笔数
@@ -201,10 +198,24 @@ func parse() {
 
 			// to start parse data
 			n = bytes.Count(buffer, []byte(I_E_NO_FLAG))
+			snrinfo.WriteString("[Cash_Info]" + LineBreak)
+			snrinfo.WriteString("LEVEL4_COUNT=" + strconv.Itoa(n) + LineBreak)
+			snrinfo.WriteString("LEVEL3_COUNT=0" + LineBreak)
+			snrinfo.WriteString("LEVEL2_COUNT=0" + LineBreak)
+			snrinfo.WriteString("OperationTime=" + time.Now().Format("2006-01-02 15:04:05") + LineBreak)
+			snrinfo.WriteString(LineBreak)
 			for i := 0; i < n; i++ {
-
-				snrinfo.WriteString("[LEVEL4_001]" + LineBreak)               // 数据还未明确
-				snrinfo.WriteString("Index=" + strconv.Itoa(i+1) + LineBreak) // 数据还未明确
+				snrinfo.WriteString(LineBreak)
+				si := strconv.Itoa(i + 1)
+				nums := si
+				lens := len(si)
+				if lens == 1 {
+					nums = "00" + si
+				} else if lens == 2 {
+					nums = "0" + si
+				}
+				snrinfo.WriteString("[LEVEL4_" + nums + "]" + LineBreak)
+				snrinfo.WriteString("Index=" + strconv.Itoa(i) + LineBreak)
 				snrinfo.WriteString("Value=100" + LineBreak)
 
 				// parse info no
@@ -249,13 +260,14 @@ func parse() {
 
 				// write bmp to file
 				snrinfo.WriteString("ImageFile=" + bmpPath + LineBreak)
-
+				fmt.Println("i_bmp_data", len(i_bmp_data))
 				bmpFile, err = os.OpenFile(bmpPath, os.O_CREATE|os.O_WRONLY, 0666)
 				if err != nil {
 					fmt.Println("创建bmp文件失败：" + bmpPath)
 				}
 				err = nil
 				bmpFile.Write(i_bmp_data)
+
 				if bmpFile != nil {
 					bmpFile.Close()
 				}
@@ -278,12 +290,12 @@ func parse() {
 			endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
 			buffer = buffer[endIndex+len(DATA_E_FLAG):]
 			logBuffer = logBuffer[0:0]
-			time.Sleep(30 * time.Second)
+			//time.Sleep(30 * time.Second)
 			fmt.Println("done...")
 
 		case <-time.After(10 * time.Second):
 			fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
-			fmt.Println("超时了")
+			//fmt.Println("超时了")
 
 		}
 	}

@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	//"runtime"
-	//"strconv"
 	"os"
+	//"strconv"
+	//"strings"
 )
 
 func main() {
@@ -28,4 +29,7 @@ func main() {
 	if e != nil {
 		fmt.Println(e)
 	}
+
+	fmt.Printf(">>>%f", 4/100)
+	fmt.Println(os.Getwd())
 }
