@@ -76,12 +76,20 @@ func init() {
 		os.Exit(1)
 	}
 	json.Unmarshal(file, config)
+
+	connectCom()
+}
+
+func connectCom() {
 	c := &serial.Config{Name: config.ComName, Baud: config.Baud}
 	com, err = serial.OpenPort(c)
 	if err != nil {
-		fmt.Println("打开串口", config.ComName, "失败:", err)
-		os.Exit(2)
+		fmt.Println("打开串口", config.ComName, "失败:")
+		fmt.Println("3秒后重新连接!")
+		time.Sleep(3 * time.Second)
+		connectCom()
 	}
+	fmt.Println("串口:", config.ComName, "连接成功！")
 	err = nil
 }
 
@@ -109,11 +117,12 @@ func read() {
 	for {
 		if bytes.Contains(buffer, []byte(DATA_E_FLAG)) {
 			ok <- STATUS_READ_DONE
-
 		}
 		n, err = com.Read(inbyte)
 		if err != nil {
-			fmt.Printf("%s", err)
+			fmt.Println("读取串口信息失败：请检查连接！")
+			connectCom()
+			continue
 		}
 		err = nil
 		buffer = append(buffer, inbyte[0:n]...)
@@ -125,14 +134,6 @@ func parse() {
 	for {
 		select {
 		case <-ok:
-
-			// open or create SNRinfo.ini
-			snrinfo, err = os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
-			if err != nil {
-				fmt.Println("创建SNRinfo.ini文件失败！", err)
-			}
-			err = nil
-
 			now := time.Now().Format("20060102")
 			if now != currentDay { // 每日清空交易笔数
 				countTimesDay = 0
@@ -143,6 +144,13 @@ func parse() {
 			err = os.MkdirAll(config.LogSavePath, 0666)
 			if err != nil {
 				fmt.Println("创建日志目录失败", err)
+			}
+			err = nil
+
+			// open or create SNRinfo.ini
+			snrinfo, err = os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
+			if err != nil {
+				fmt.Println("创建SNRinfo.ini文件失败！", err)
 			}
 			err = nil
 
@@ -198,12 +206,14 @@ func parse() {
 
 			// to start parse data
 			n = bytes.Count(buffer, []byte(I_E_NO_FLAG))
-			snrinfo.WriteString("[Cash_Info]" + LineBreak)
-			snrinfo.WriteString("LEVEL4_COUNT=" + strconv.Itoa(n) + LineBreak)
-			snrinfo.WriteString("LEVEL3_COUNT=0" + LineBreak)
-			snrinfo.WriteString("LEVEL2_COUNT=0" + LineBreak)
-			snrinfo.WriteString("OperationTime=" + time.Now().Format("2006-01-02 15:04:05") + LineBreak)
-			snrinfo.WriteString(LineBreak)
+			if n > 0 {
+				snrinfo.WriteString("[Cash_Info]" + LineBreak)
+				snrinfo.WriteString("LEVEL4_COUNT=" + strconv.Itoa(n) + LineBreak)
+				snrinfo.WriteString("LEVEL3_COUNT=0" + LineBreak)
+				snrinfo.WriteString("LEVEL2_COUNT=0" + LineBreak)
+				snrinfo.WriteString("OperationTime=" + time.Now().Format("2006-01-02 15:04:05") + LineBreak)
+				snrinfo.WriteString(LineBreak)
+			}
 			for i := 0; i < n; i++ {
 				snrinfo.WriteString(LineBreak)
 				si := strconv.Itoa(i + 1)
@@ -323,7 +333,6 @@ func bmpClear() error {
 
 func logClear() error {
 	// 定时检查过期数据
-	fmt.Println("ok?")
 	files, err := ioutil.ReadDir(config.LogSavePath)
 	if err != nil {
 		return errors.New("未找到Log目录：" + err.Error())
@@ -336,9 +345,7 @@ func logClear() error {
 			continue
 		}
 		if time.Now().Sub(t.Add(config.LogDaysToKeep*24*time.Hour)) > 0 {
-			fmt.Println("to ok")
 			os.Remove(filepath.Join(config.LogSavePath, filename))
-			fmt.Println("ok")
 		}
 	}
 	return nil

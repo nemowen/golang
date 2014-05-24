@@ -32,4 +32,6 @@ func main() {
 
 	fmt.Printf(">>>%f", 4/100)
 	fmt.Println(os.Getwd())
+
+	fmt.Println(bytes.Count(buffer, []byte("ab")))
 }
