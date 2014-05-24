@@ -51,15 +51,11 @@ var (
 	config        *configObj               // 配置文件
 	countTimesDay int                      // 当天交易次数
 	currentDay    string                   // 今天日期
-	bmpEndFlag    string                   // bmp数据结束标识
 	snrinfo       *os.File                 // ini文件对象
 	snrlog        *os.File                 // 日志记录
 	bmpPath       string                   // bmp 路径
 	bmpFile       *os.File                 // bmp对象
 	err           error                    // 全局err对象
-	startIndex    int                      // 开始索引
-	endIndex      int                      // 结束索引
-	inited        bool                     // 是否已经初始化
 	logBuffer     []byte                   // log临时缓冲区
 
 )
@@ -78,6 +74,19 @@ func init() {
 	json.Unmarshal(file, config)
 
 	connectCom()
+
+	// 检查当前最后笔数
+	now := time.Now().Format("20060102")
+	currentDay = now
+	path := filepath.Join(config.BmpSavePath, now)
+	files, err := ioutil.ReadDir(path)
+	if err == nil {
+		fmt.Println("times:", len(files))
+		countTimesDay = len(files)
+	}
+
+	// 删除文件
+	os.Remove(config.IniSavePath)
 }
 
 func connectCom() {
@@ -106,6 +115,16 @@ func main() {
 	defer tools.StopTask()
 
 	go read()
+
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-time.After(5 * time.Second):
+	// 			fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
+
+	// 		}
+	// 	}
+	// }()
 	go parse()
 
 	<-exit
@@ -115,8 +134,9 @@ func read() {
 	var inbyte = make([]byte, 1024)
 	var n int
 	for {
-		if bytes.Contains(buffer, []byte(DATA_E_FLAG)) {
+		if bytes.Contains(buffer, []byte(MSG_E_FLAG)) {
 			ok <- STATUS_READ_DONE
+			//parse()
 		}
 		n, err = com.Read(inbyte)
 		if err != nil {
@@ -126,6 +146,7 @@ func read() {
 		}
 		err = nil
 		buffer = append(buffer, inbyte[0:n]...)
+		//}
 
 	}
 }
@@ -147,165 +168,173 @@ func parse() {
 			}
 			err = nil
 
-			// open or create SNRinfo.ini
-			snrinfo, err = os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
-			if err != nil {
-				fmt.Println("创建SNRinfo.ini文件失败！", err)
-			}
-			err = nil
-
-			// open or create a log file
-			snrlog, err = os.OpenFile(filepath.Join(config.LogSavePath, now+".log"),
-				os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
-			if err != nil {
-				fmt.Println("创建日志文件失败！", err)
-			}
-			err = nil
-			//inited = true
-			fmt.Println("初始化成功。。。")
+			// ===============状态信息处理开始===============
 
 			var n int
-			// create directory
-			countTimesDay += 1 // 统计交易笔数
-			ctd := strconv.Itoa(countTimesDay)
-			path := filepath.Join(config.BmpSavePath, currentDay, ctd)
-			err = os.MkdirAll(path, 0666)
-			if err != nil {
-				fmt.Println("创建BMP目录失败", err)
-			}
-			err = nil
 
 			// parse machine state
-			endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
-			logBuffer = buffer[0 : endIndex+len(DATA_E_FLAG)]
-			n = bytes.Count(logBuffer, []byte("]t**s["))
-			fmt.Println("log跑", n, "次")
-			for i := 0; i < n; i++ {
-				startIndex = bytes.Index(logBuffer, []byte(M_S_DATE_FLAG))
-				fmt.Println("startIndex:", startIndex)
-				endIndex = bytes.Index(logBuffer, []byte(MSG_E_FLAG))
-				fmt.Println("endIndex:", endIndex)
-				snrlog.WriteString(string(logBuffer[startIndex:endIndex+len(MSG_E_FLAG)]) + LineBreak)
-				logBuffer = logBuffer[endIndex+len(MSG_E_FLAG):]
+			// endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
+			// logBuffer = buffer[0 : endIndex+len(DATA_E_FLAG)]
+			n = bytes.Count(buffer, []byte(MSG_E_FLAG))
+			if n > 0 {
+				// open or create a log file
+				snrlog, err = os.OpenFile(filepath.Join(config.LogSavePath, now+".log"),
+					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+				if err != nil {
+					fmt.Println("创建日志文件失败！", err)
+				}
+				err = nil
+
+				fmt.Println("初始化成功。。。")
 			}
-			// startIndex = bytes.Index(buffer, []byte(MSG_S_FLAG))
-			// endIndex = bytes.Index(buffer, []byte(MSG_E_FLAG))
-			// snrlog.WriteString(string(buffer[startIndex : endIndex+len(MSG_E_FLAG)]))
+			fmt.Println("log跑", n, "次")
+			var startIndex int // 开始索引
+			var endIndex int   // 结束索引
+			for i := 0; i < n; i++ {
+				startIndex = bytes.Index(buffer, []byte(M_S_DATE_FLAG))
+				fmt.Println("startIndex:", startIndex)
+				endIndex = bytes.Index(buffer, []byte(MSG_E_FLAG))
+				fmt.Println("endIndex:", endIndex)
+				snrlog.WriteString(string(buffer[startIndex:endIndex+len(MSG_E_FLAG)]) + LineBreak)
+				//buffer = buffer[endIndex+len(MSG_E_FLAG):]
+				// clear data
+				buffer = bytes.Replace(buffer, buffer[startIndex:endIndex+len(MSG_E_FLAG)], []byte(""), 1)
+			}
+			if snrlog != nil {
+				snrlog.Close()
+			}
+			// ===============状态信息处理结束===============
 
-			// parse info date
-			i_date_s_index := bytes.Index(buffer, []byte(I_S_DATE_FLAG))
-			i_date_e_index := bytes.Index(buffer, []byte(I_E_DATE_FLAG))
-			i_date_data := buffer[i_date_s_index+len(I_S_DATE_FLAG) : i_date_e_index]
-
-			// parse info time
-			i_time_s_index := bytes.Index(buffer, []byte(I_S_TIME_FLAG))
-			i_time_e_index := bytes.Index(buffer, []byte(I_E_TIME_FLAG))
-			i_time_data := buffer[i_time_s_index+len(I_S_TIME_FLAG) : i_time_e_index]
-
-			fmt.Println(string(i_date_data), string(i_time_data))
-
+			// ===============信息数据处理开始===============
 			// to start parse data
 			n = bytes.Count(buffer, []byte(I_E_NO_FLAG))
+			//o := bytes.Count(buffer, []byte(DATA_E_FLAG))
 			if n > 0 {
+				// create directory
+				countTimesDay += 1 // 统计交易笔数
+				ctd := strconv.Itoa(countTimesDay)
+				path := filepath.Join(config.BmpSavePath, currentDay, ctd)
+				err = os.MkdirAll(path, 0666)
+				if err != nil {
+					fmt.Println("创建BMP目录失败", err)
+				}
+				err = nil
+
+				// open or create SNRinfo.ini
+				snrinfo, err = os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
+				if err != nil {
+					fmt.Println("创建SNRinfo.ini文件失败！", err)
+				}
+				err = nil
+
 				snrinfo.WriteString("[Cash_Info]" + LineBreak)
 				snrinfo.WriteString("LEVEL4_COUNT=" + strconv.Itoa(n) + LineBreak)
 				snrinfo.WriteString("LEVEL3_COUNT=0" + LineBreak)
 				snrinfo.WriteString("LEVEL2_COUNT=0" + LineBreak)
 				snrinfo.WriteString("OperationTime=" + time.Now().Format("2006-01-02 15:04:05") + LineBreak)
 				snrinfo.WriteString(LineBreak)
-			}
-			for i := 0; i < n; i++ {
-				snrinfo.WriteString(LineBreak)
-				si := strconv.Itoa(i + 1)
-				nums := si
-				lens := len(si)
-				if lens == 1 {
-					nums = "00" + si
-				} else if lens == 2 {
-					nums = "0" + si
-				}
-				snrinfo.WriteString("[LEVEL4_" + nums + "]" + LineBreak)
-				snrinfo.WriteString("Index=" + strconv.Itoa(i) + LineBreak)
-				snrinfo.WriteString("Value=100" + LineBreak)
 
-				// parse info no
-				i_no_s_index := bytes.Index(buffer, []byte(I_S_NO_FLAG))
-				i_no_e_index := bytes.Index(buffer, []byte(I_E_NO_FLAG))
-				i_no_data := buffer[i_no_s_index+len(I_S_NO_FLAG) : i_no_e_index]
+				// parse info date
+				i_date_s_index := bytes.Index(buffer, []byte(I_S_DATE_FLAG))
+				i_time_e_index := bytes.Index(buffer, []byte(I_E_TIME_FLAG))
+				buffer = bytes.Replace(buffer, buffer[i_date_s_index:i_time_e_index+len(I_E_TIME_FLAG)], []byte(""), 1)
 
-				i_no_data_str := string(i_no_data) // 给后面使用
-
-				bmpPath = filepath.Join(path, i_no_data_str+".bmp")
-
-				// clear no data
-				//buffer = bytes.Replace(buffer, buffer[i_no_s_index:i_no_e_index+len(I_E_NO_FLAG)], []byte(""), 1)
-				buffer = buffer[i_no_e_index+len(I_E_NO_FLAG):]
-
-				// parse info bn
-				i_bn_s_index := bytes.Index(buffer, []byte(I_S_BN_FLAG))
-				i_bn_e_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
-				i_bn_data := buffer[i_bn_s_index+len(I_S_BN_FLAG) : i_bn_e_index]
-
-				snrinfo.WriteString("SerialNumber=" + string(i_bn_data) + LineBreak)
-
-				// clear bn data
-				//buffer = bytes.Replace(buffer, buffer[i_bn_s_index:i_bn_e_index], []byte(""), 1)
-				buffer = buffer[i_bn_e_index:]
-
-				// parse info bmp
-				if i < (n - 1) { // bmpEndFlag:= "*bn{02}bn*"
-					num, _ := strconv.Atoi(string(i_no_data_str))
-					num = num + 1
-					numstr := strconv.Itoa(num)
-					if num < 10 {
-						numstr = "0" + numstr
+				for i := 0; i < n; i++ {
+					snrinfo.WriteString(LineBreak)
+					si := strconv.Itoa(i + 1)
+					nums := si
+					lens := len(si)
+					if lens == 1 {
+						nums = "00" + si
+					} else if lens == 2 {
+						nums = "0" + si
 					}
-					bmpEndFlag = I_S_NO_FLAG + numstr + I_E_NO_FLAG
-				} else { // bmpEndFlag:= "*s[output_end]s*"
-					bmpEndFlag = DATA_E_FLAG
-				}
-				i_bmp_s_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
-				i_bmp_e_index := bytes.Index(buffer, []byte(bmpEndFlag))
-				i_bmp_data := buffer[i_bmp_s_index+len(I_E_BN_FLAG) : i_bmp_e_index]
+					snrinfo.WriteString("[LEVEL4_" + nums + "]" + LineBreak)
+					snrinfo.WriteString("Index=" + strconv.Itoa(i) + LineBreak)
+					snrinfo.WriteString("Value=100" + LineBreak)
 
-				// write bmp to file
-				snrinfo.WriteString("ImageFile=" + bmpPath + LineBreak)
-				fmt.Println("i_bmp_data", len(i_bmp_data))
-				bmpFile, err = os.OpenFile(bmpPath, os.O_CREATE|os.O_WRONLY, 0666)
-				if err != nil {
-					fmt.Println("创建bmp文件失败：" + bmpPath)
-				}
-				err = nil
-				bmpFile.Write(i_bmp_data)
+					// parse info no
+					i_no_s_index := bytes.Index(buffer, []byte(I_S_NO_FLAG))
+					i_no_e_index := bytes.Index(buffer, []byte(I_E_NO_FLAG))
+					i_no_data := buffer[i_no_s_index+len(I_S_NO_FLAG) : i_no_e_index]
 
-				if bmpFile != nil {
-					bmpFile.Close()
-				}
-				bmpPath = ""
-				bmpFile = nil
+					i_no_data_str := string(i_no_data) // 给后面使用
 
-				// clear bmp data
-				//buffer = bytes.Replace(buffer, buffer[i_bmp_s_index:i_bmp_e_index], []byte(""), 1)
-				buffer = buffer[i_bmp_e_index:]
+					bmpPath = filepath.Join(path, i_no_data_str+".bmp")
+
+					// clear no data
+					buffer = bytes.Replace(buffer, buffer[i_no_s_index:i_no_e_index+len(I_E_NO_FLAG)], []byte(""), 1)
+					//buffer = buffer[i_no_e_index+len(I_E_NO_FLAG):]
+
+					// parse info bn
+					i_bn_s_index := bytes.Index(buffer, []byte(I_S_BN_FLAG))
+					i_bn_e_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
+					i_bn_data := buffer[i_bn_s_index+len(I_S_BN_FLAG) : i_bn_e_index]
+
+					snrinfo.WriteString("SerialNumber=" + string(i_bn_data) + LineBreak)
+
+					// clear bn data
+					buffer = bytes.Replace(buffer, buffer[i_bn_s_index:i_bn_e_index], []byte(""), 1)
+					//buffer = buffer[i_bn_e_index:]
+
+					i_bmp_s_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
+					var i_bmp_e_index int
+					// parse info bmp
+					if i < (n - 1) { // bmpEndFlag:= "*bn{02}bn*"
+						num, _ := strconv.Atoi(string(i_no_data_str))
+						num = num + 1
+						numstr := strconv.Itoa(num)
+						if num < 10 {
+							numstr = "0" + numstr
+						}
+						i_bmp_e_index = bytes.Index(buffer, []byte(I_S_NO_FLAG+numstr+I_E_NO_FLAG))
+					} else { // bmpEndFlag:= "*s[output_end]s*"
+						//bmpEndFlag = M_S_DATE_FLAG
+						i_bmp_e_index = len(buffer)
+					}
+
+					fmt.Println(">>>> ", i_bmp_s_index+len(I_E_BN_FLAG), i_bmp_e_index)
+					i_bmp_data := buffer[i_bmp_s_index+len(I_E_BN_FLAG) : i_bmp_e_index]
+
+					// write bmp to file
+					snrinfo.WriteString("ImageFile=" + bmpPath + LineBreak)
+					fmt.Println("i_bmp_data", len(i_bmp_data))
+					bmpFile, err = os.OpenFile(bmpPath, os.O_CREATE|os.O_WRONLY, 0666)
+					if err != nil {
+						fmt.Println("创建bmp文件失败：" + bmpPath)
+					}
+					err = nil
+					bmpFile.Write(i_bmp_data)
+
+					if bmpFile != nil {
+						bmpFile.Close()
+					}
+					bmpPath = ""
+					bmpFile = nil
+
+					// clear bmp data
+					buffer = bytes.Replace(buffer, buffer[i_bmp_s_index:i_bmp_e_index], []byte(""), 1)
+					//buffer = buffer[i_bmp_e_index:]
+					// ===============信息数据处理结束===============
+				}
+
+				// 一笔结束，回收资源
+				if snrinfo != nil {
+					snrinfo.Close()
+				}
+
 			}
 
-			// 一笔结束，回收资源
-			if snrinfo != nil {
-				snrinfo.Close()
-			}
-			if snrlog != nil {
-				snrlog.Close()
-			}
-			inited = false
-			endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
-			buffer = buffer[endIndex+len(DATA_E_FLAG):]
-			logBuffer = logBuffer[0:0]
+			//endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
+			//buffer = buffer[endIndex+len(DATA_E_FLAG):]
+			//buffer = buffer[0:0]
+			//logBuffer = logBuffer[0:0]
 			//time.Sleep(30 * time.Second)
 			fmt.Println("done...")
 
-		case <-time.After(10 * time.Second):
-			fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
-			//fmt.Println("超时了")
+		case <-time.After(5 * time.Second):
+			fmt.Printf("len:%d cap:%d\n", len(buffer), cap(buffer))
+			fmt.Println("超时了")
 
 		}
 	}
