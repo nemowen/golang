@@ -11,20 +11,17 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 )
 
-const (
-	// 客户端配置文件路径
-	_server_preferences string = "D:/PROGRAM/GO/Development/src/gotest/rbg/config/Server.Preferences.json"
-)
-
 var (
-	server_preferences *config.ServerConfig // 配置文件实例
-	dao                *sql.DB              // 数据库实例
-	log                *logs.BeeLogger      // 日志实例
+	server_preferences *config.ServerConfig    // 配置文件实例
+	dao                *sql.DB                 // 数据库实例
+	log                *logs.BeeLogger         // 日志实例
+	clientConns        map[string]*net.TCPConn // 每个客户端的连接集合
 )
 
 // 需要传输数据的结构
@@ -42,10 +39,9 @@ type Obj struct {
 	CurrencyNumber      string    // 冠字号码
 	Ima                 []byte    // 冠字号图像数据
 	ImaPath             string    // 冠字号保存图像路径
-
-	ClientName string // 客户端设备名称
-	ClientIP   string // 客户端IP
-	Remark     string // 备注
+	ClientName          string    // 客户端设备名称
+	ClientIP            string    // 客户端IP
+	Remark              string    // 备注
 }
 
 // 接收数据处理方法
@@ -77,9 +73,7 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 
 func init() {
 	loadConfig()
-
 	log = logs.NewLogger(100000)
-
 	log.SetLogger("file", `{"filename":"`+server_preferences.LOG_SAVE_PATH+`"}`)
 	log.SetLogger("console", "")
 	// log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"'sytwgmail%100s.","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
@@ -91,6 +85,7 @@ func main() {
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
 	defer dao.Close()
+	clientConns = make(map[string]*net.TCPConn, 100)
 
 	u := new(Obj)
 	rpc.Register(u)
@@ -108,14 +103,24 @@ func main() {
 	listener, err := net.ListenTCP("tcp", tcpAddr)
 	checkError(err)
 
-	log.Info("服务已经启动!")
+	log.Info("服务端已经启动!")
 	for {
 		conn, err := listener.AcceptTCP()
 		if err != nil {
 			log.Error("rpc.Server: accept Error:%s", err)
 		}
 		ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
-		log.Info("IP [ %s ] 已经成功连接到服务器...", ip)
+
+		if v, ok := clientConns[ip]; ok {
+			v.Close()
+		}
+		clientConns[ip] = conn
+		// 创建目录
+		err = os.MkdirAll(filepath.Join(server_preferences.BMP_SAVE_PATH, ip), 0666)
+		if err != nil {
+			log.Error("创建目录失败:IP[%s]", ip)
+		}
+		log.Info("IP [ %s ] 已经成功连接到服务器...[%d]", ip, len(clientConns))
 		go rpc.ServeConn(conn)
 	}
 
@@ -123,12 +128,15 @@ func main() {
 
 // 加载配置文件
 func loadConfig() {
-	server_preferences = new(config.ServerConfig)
-	file, e := ioutil.ReadFile(_server_preferences)
+	pwd, _ := os.Getwd()
+	pwd = filepath.Join(pwd, "Server.Preferences.json")
+	file, e := ioutil.ReadFile(pwd)
 	if e != nil {
 		fmt.Println("读取配置文件失败!请与管理员联系!")
 		os.Exit(1)
 	}
+
+	server_preferences = new(config.ServerConfig)
 	json.Unmarshal(file, server_preferences)
 }
 

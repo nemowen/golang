@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -29,16 +30,10 @@ type Obj struct {
 	CurrencyNumber      string    // 冠字号码
 	Ima                 []byte    // 冠字号图像数据
 	ImaPath             string    // 冠字号保存图像路径
-
-	ClientName string // 客户端设备名称
-	ClientIP   string // 客户端IP
-	Remark     string // 备注
+	ClientName          string    // 客户端设备名称
+	ClientIP            string    // 客户端IP
+	Remark              string    // 备注
 }
-
-const (
-	// 客户端配置文件路径
-	CLIENT_PREFERENCES string = "D:/PROGRAM/GO/Development/src/gotest/rbg/config/Client.Preferences.json"
-)
 
 var (
 	client             *rpc.Client         // 连接服务器client实例
@@ -55,7 +50,9 @@ var (
 
 func init() {
 	// 加载配置文件
-	file, e := ioutil.ReadFile(CLIENT_PREFERENCES)
+	pwd, _ := os.Getwd()
+	pwd = filepath.Join(pwd, "Client.Preferences.json")
+	file, e := ioutil.ReadFile(pwd)
 	if e != nil {
 		panic("读取配置文件失败！请与管理员联系！")
 		os.Exit(1)
@@ -83,6 +80,8 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	reply = make(chan string, 1)
 	read = make(chan bool)
+	obj = new(Obj)
+
 	// 启动监控文件
 	go NewWatcher(client_preferences.FLAG_FILE_PATH, reply, read)
 	read <- true
@@ -160,6 +159,7 @@ func sendDataToServer() {
 	var line string
 	var err error
 	replay := new(string)
+
 	for err == nil {
 		// 如果回滚对象为空，正常运行，否则先处理上次失败的对象
 		if rebackObj == nil {
@@ -170,7 +170,6 @@ func sendDataToServer() {
 			}
 			line = strings.TrimRight(line, "\r\n")
 			items := strings.Split(line, "|")
-			obj = new(Obj)
 			obj.Date = items[0]
 			obj.Time = items[1]
 			obj.SerialNumber = items[2]

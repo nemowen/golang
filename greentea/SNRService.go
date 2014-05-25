@@ -61,11 +61,11 @@ var (
 )
 
 func init() {
-	config = new(configObj)
-	var pwd string
-	pwd, err = os.Getwd()
+
+	pwd, _ := os.Getwd()
 	pwd = filepath.Join(pwd, "config.json")
-	fmt.Println(pwd)
+
+	config = new(configObj)
 	file, e := ioutil.ReadFile(pwd)
 	if e != nil {
 		fmt.Println("读取配置文件失败!请与管理员联系!")
