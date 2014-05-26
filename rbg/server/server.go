@@ -46,8 +46,11 @@ type Obj struct {
 
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
+	bmppath := filepath.Join(server_preferences.BMP_SAVE_PATH, obj.ClientIP, obj.Date)
+	os.MkdirAll(bmppath, 0666)
 	// 图像保存
-	f, err := os.Create(server_preferences.BMP_SAVE_PATH + obj.SerialNumber + ".bmp")
+	bmppath = filepath.Join(bmppath, obj.SerialNumber+".bmp")
+	f, err := os.Create(bmppath)
 	if err != nil {
 		log.Error("保存bmp失败：%s", obj.SerialNumber)
 		*replay = config.SAVE_BMP_ERROR
@@ -158,6 +161,7 @@ func openDB() {
 	db.SetMaxIdleConns(config.DB_MAX_IDLE_CONNS)
 	db.SetMaxOpenConns(config.DB_MAX_OPEN_CONNS)
 	dao = db
+
 }
 
 // 关闭客户端连接
