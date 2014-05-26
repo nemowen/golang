@@ -22,6 +22,7 @@ var (
 	dao                *sql.DB                 // 数据库实例
 	log                *logs.BeeLogger         // 日志实例
 	clientConns        map[string]*net.TCPConn // 每个客户端的连接集合
+	smtp               *sql.Stmt
 )
 
 // 需要传输数据的结构
@@ -46,30 +47,34 @@ type Obj struct {
 
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
-	bmppath := filepath.Join(server_preferences.BMP_SAVE_PATH, obj.ClientIP, obj.Date)
-	os.MkdirAll(bmppath, 0666)
 	// 图像保存
-	bmppath = filepath.Join(bmppath, obj.SerialNumber+".bmp")
-	f, err := os.Create(bmppath)
+	obj.ImaPath = filepath.Join(server_preferences.BMP_SAVE_PATH, obj.ClientName, obj.Date, obj.SerialNumber+".bmp")
+REGO:
+	f, err := os.Create(obj.ImaPath)
 	if err != nil {
-		log.Error("保存bmp失败：%s", obj.SerialNumber)
-		*replay = config.SAVE_BMP_ERROR
-		return nil
+		err = os.MkdirAll(obj.ImaPath[:strings.LastIndex(obj.ImaPath, "\\")], 0666)
+		if err != nil {
+			log.Error("保存bmp失败：%s", obj.SerialNumber)
+			*replay = config.SAVE_BMP_ERROR
+			return nil
+		}
+		log.Info("创建目录：", obj.ClientName)
+		goto REGO
 	}
 	defer f.Close()
 	f.Write(obj.Ima)
 
 	// 数据存库
-	insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
+
+	//insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
 	str_time, _ := time.Parse("2006-01-02 15:04:05", (obj.Date[0:4] + "-" + obj.Date[4:6] + "-" + obj.Date[6:8] + " " + obj.Time))
-	_, err = dao.Exec(insert_sql, obj.Date, obj.Time, str_time, obj.CardId, obj.SerialNumberInTimes, obj.CurrencyNumber)
+	_, err = smtp.Exec(obj.Date, obj.Time, str_time, obj.SerialNumber, obj.Type, obj.CardId, obj.FaceValue, obj.Version, obj.CurrencyCode, obj.SerialNumberInTimes, obj.CurrencyNumber, obj.ImaPath, obj.ClientName, obj.ClientIP, obj.Remark)
 	if err != nil {
 		log.Error("%s%s", "保存到数据库失败：", obj.CurrencyNumber)
 		log.Error("%s", err)
 		*replay = config.SAVE_TO_DB_ERROR
 		return nil
 	}
-
 	*replay = "OK"
 	return nil
 }
@@ -85,6 +90,13 @@ func init() {
 }
 
 func main() {
+	insert_sql := "INSERT INTO T_BR(DATE,TIME,INTIME,SERIALNUMBER,TYPE,CARDID,FACEVALUE,VERSION,CURRENCYCODE,SERIALNUMBERINTIMES,BILLBN,IMAPATH,CLIENTNAME,CLIENTIP,REMARK)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+	var e error
+	smtp, e = dao.Prepare(insert_sql)
+	if e != nil {
+		log.Error(e.Error())
+	}
+	defer smtp.Close()
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
 	defer dao.Close()
@@ -92,6 +104,17 @@ func main() {
 
 	u := new(Obj)
 	rpc.Register(u)
+
+	go func() {
+		for {
+			select {
+			case <-time.After(3 * time.Second):
+				for k, v := range clientConns {
+					log.Info("%s,%v", k, v)
+				}
+			}
+		}
+	}()
 
 	// http：方式
 	// exit:=make(chan bool)
@@ -118,11 +141,6 @@ func main() {
 			v.Close()
 		}
 		clientConns[ip] = conn
-		// 创建目录
-		err = os.MkdirAll(filepath.Join(server_preferences.BMP_SAVE_PATH, ip), 0666)
-		if err != nil {
-			log.Error("创建目录失败:IP[%s]", ip)
-		}
 		log.Info("IP [ %s ] 已经成功连接到服务器...[%d]", ip, len(clientConns))
 		go rpc.ServeConn(conn)
 	}
