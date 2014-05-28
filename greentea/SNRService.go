@@ -17,13 +17,14 @@ import (
 )
 
 type configObj struct {
-	ComName       string        // 串口名称
-	Baud          int           // 波特率
-	IniSavePath   string        // ini文件保存路径
-	BmpSavePath   string        // bmp保存路径
-	LogSavePath   string        // log文件记录
-	LogDaysToKeep time.Duration // log保存天数
-	BmpDaysToKeep time.Duration // bmp保存天数
+	ComName        string        // 串口名称
+	Baud           int           // 波特率
+	IniSavePath    string        // ini文件保存路径
+	BmpSavePath    string        // bmp保存路径
+	LogSavePath    string        // log文件记录
+	LogDaysToKeep  time.Duration // log保存天数
+	BmpDaysToKeep  time.Duration // bmp保存天数
+	ReceiveTimeout time.Duration // 数据接收超时，秒为单位
 
 }
 
@@ -36,6 +37,8 @@ const (
 	I_S_BN_FLAG, I_E_BN_FLAG     = "*bn{", "}bn*"                    // 数据冠字号标识位
 	M_S_DATE_FLAG, M_E_DATE_FLAG = "*d[", "]d*"                      // 机器状态：数据日期标识位
 	M_S_TIME_FLAG, M_E_TIME_FLAG = "*t[", "]t*"                      // 机器状态：数据时间标识位
+
+	DATA_BEGIN_FLAG = "[output_begin]"
 
 	STATUS_INIT      int = 1 // 初始化工作
 	STATUS_READ_DONE int = 2 // 读取完成
@@ -81,7 +84,6 @@ func init() {
 	path := filepath.Join(config.BmpSavePath, now)
 	files, err := ioutil.ReadDir(path)
 	if err == nil {
-		fmt.Println("times:", len(files))
 		countTimesDay = len(files)
 	}
 
@@ -107,26 +109,12 @@ func main() {
 	ok = make(chan int)
 	readable = make(chan byte, 1)
 	exit := make(chan bool)
-	bmpClearTask := tools.NewTask("bmpClearTask", "59 59 23 * * * ", bmpClear)
-	logClearTask := tools.NewTask("logClearTask", "59 59 01 * * * ", logClear)
-	tools.AddTask("bmpClearTask", bmpClearTask)
-	tools.AddTask("logClearTask", logClearTask)
+	dataClearTask := tools.NewTask("dataClearTask", "59 59 23 * * * ", dataClear)
+	tools.AddTask("dataClearTask", dataClearTask)
 	tools.StartTask()
 	defer tools.StopTask()
-
 	go read()
-
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-time.After(5 * time.Second):
-	// 			fmt.Printf("len:%d cap:%d pointer:%p\n", len(buffer), cap(buffer), buffer)
-
-	// 		}
-	// 	}
-	// }()
 	go parse()
-
 	<-exit
 }
 
@@ -136,7 +124,6 @@ func read() {
 	for {
 		if bytes.Contains(buffer, []byte(MSG_E_FLAG)) {
 			ok <- STATUS_READ_DONE
-			//parse()
 		}
 		n, err = com.Read(inbyte)
 		if err != nil {
@@ -146,8 +133,6 @@ func read() {
 		}
 		err = nil
 		buffer = append(buffer, inbyte[0:n]...)
-		//}
-
 	}
 }
 
@@ -169,12 +154,9 @@ func parse() {
 			err = nil
 
 			// ===============状态信息处理开始===============
-
 			var n int
 
 			// parse machine state
-			// endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
-			// logBuffer = buffer[0 : endIndex+len(DATA_E_FLAG)]
 			n = bytes.Count(buffer, []byte(MSG_E_FLAG))
 			if n > 0 {
 				// open or create a log file
@@ -184,21 +166,17 @@ func parse() {
 					fmt.Println("创建日志文件失败！", err)
 				}
 				err = nil
-
-				fmt.Println("初始化成功。。。")
 			}
-			fmt.Println("log跑", n, "次")
 			var startIndex int // 开始索引
 			var endIndex int   // 结束索引
 			for i := 0; i < n; i++ {
 				startIndex = bytes.Index(buffer, []byte(M_S_DATE_FLAG))
-				fmt.Println("startIndex:", startIndex)
 				endIndex = bytes.Index(buffer, []byte(MSG_E_FLAG))
-				fmt.Println("endIndex:", endIndex)
-				snrlog.WriteString(string(buffer[startIndex:endIndex+len(MSG_E_FLAG)]) + LineBreak)
-				//buffer = buffer[endIndex+len(MSG_E_FLAG):]
-				// clear data
-				buffer = bytes.Replace(buffer, buffer[startIndex:endIndex+len(MSG_E_FLAG)], []byte(""), 1)
+				if -1 < startIndex && -1 < endIndex {
+					snrlog.WriteString(string(buffer[startIndex:endIndex+len(MSG_E_FLAG)]) + LineBreak)
+					// clear data
+					buffer = bytes.Replace(buffer, buffer[startIndex:endIndex+len(MSG_E_FLAG)], []byte(""), 1)
+				}
 			}
 			if snrlog != nil {
 				snrlog.Close()
@@ -208,8 +186,8 @@ func parse() {
 			// ===============信息数据处理开始===============
 			// to start parse data
 			n = bytes.Count(buffer, []byte(I_E_NO_FLAG))
-			//o := bytes.Count(buffer, []byte(DATA_E_FLAG))
-			if n > 0 {
+			o := bytes.Contains(buffer, []byte(DATA_E_FLAG))
+			if n > 0 && o {
 				// create directory
 				countTimesDay += 1 // 统计交易笔数
 				ctd := strconv.Itoa(countTimesDay)
@@ -264,7 +242,6 @@ func parse() {
 
 					// clear no data
 					buffer = bytes.Replace(buffer, buffer[i_no_s_index:i_no_e_index+len(I_E_NO_FLAG)], []byte(""), 1)
-					//buffer = buffer[i_no_e_index+len(I_E_NO_FLAG):]
 
 					// parse info bn
 					i_bn_s_index := bytes.Index(buffer, []byte(I_S_BN_FLAG))
@@ -275,7 +252,6 @@ func parse() {
 
 					// clear bn data
 					buffer = bytes.Replace(buffer, buffer[i_bn_s_index:i_bn_e_index], []byte(""), 1)
-					//buffer = buffer[i_bn_e_index:]
 
 					i_bmp_s_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
 					var i_bmp_e_index int
@@ -289,16 +265,12 @@ func parse() {
 						}
 						i_bmp_e_index = bytes.Index(buffer, []byte(I_S_NO_FLAG+numstr+I_E_NO_FLAG))
 					} else { // bmpEndFlag:= "*s[output_end]s*"
-						//bmpEndFlag = M_S_DATE_FLAG
 						i_bmp_e_index = len(buffer)
 					}
-
-					fmt.Println(">>>> ", i_bmp_s_index+len(I_E_BN_FLAG), i_bmp_e_index)
 					i_bmp_data := buffer[i_bmp_s_index+len(I_E_BN_FLAG) : i_bmp_e_index]
 
 					// write bmp to file
 					snrinfo.WriteString("ImageFile=" + bmpPath + LineBreak)
-					fmt.Println("i_bmp_data", len(i_bmp_data))
 					bmpFile, err = os.OpenFile(bmpPath, os.O_CREATE|os.O_WRONLY, 0666)
 					if err != nil {
 						fmt.Println("创建bmp文件失败：" + bmpPath)
@@ -314,7 +286,6 @@ func parse() {
 
 					// clear bmp data
 					buffer = bytes.Replace(buffer, buffer[i_bmp_s_index:i_bmp_e_index], []byte(""), 1)
-					//buffer = buffer[i_bmp_e_index:]
 					// ===============信息数据处理结束===============
 				}
 
@@ -322,25 +293,23 @@ func parse() {
 				if snrinfo != nil {
 					snrinfo.Close()
 				}
-
+				buffer = buffer[0:0]
+				fmt.Println("本次任务完成！！！")
 			}
 
-			//endIndex = bytes.Index(buffer, []byte(DATA_E_FLAG))
-			//buffer = buffer[endIndex+len(DATA_E_FLAG):]
-			//buffer = buffer[0:0]
-			//logBuffer = logBuffer[0:0]
-			//time.Sleep(30 * time.Second)
-			fmt.Println("done...")
-
-		case <-time.After(5 * time.Second):
-			fmt.Printf("len:%d cap:%d\n", len(buffer), cap(buffer))
-			fmt.Println("超时了")
+		case <-time.After(config.ReceiveTimeout * time.Second):
+			if bytes.Contains(buffer, []byte(DATA_BEGIN_FLAG)) && !bytes.Contains(buffer, []byte(DATA_E_FLAG)) {
+				buffer = buffer[0:0]
+				fmt.Println("数据接收超时了。。。")
+			} else {
+				fmt.Println("等待接收数据。。。")
+			}
 
 		}
 	}
 }
 
-func bmpClear() error {
+func dataClear() error {
 	// 定时检查过期数据
 	files, err := ioutil.ReadDir(config.BmpSavePath)
 	if err != nil {
@@ -357,12 +326,8 @@ func bmpClear() error {
 			os.RemoveAll(filepath.Join(config.BmpSavePath, filename))
 		}
 	}
-	return nil
-}
 
-func logClear() error {
-	// 定时检查过期数据
-	files, err := ioutil.ReadDir(config.LogSavePath)
+	files, err = ioutil.ReadDir(config.LogSavePath)
 	if err != nil {
 		return errors.New("未找到Log目录：" + err.Error())
 	}

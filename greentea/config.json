@@ -1,9 +1,10 @@
 {
-	"ComName": "COM13",
+	"ComName": "COM2",
 	"Baud": 230400,
 	"IniSavePath": "D:/SNRData/SNRinfo.ini",
 	"BmpSavePath": "D:/SNRData/BMP",
 	"LogSavePath": "D:/SNRData/logs/",
 	"LogDaysToKeep": 1,
-	"BmpDaysToKeep": 1
+	"BmpDaysToKeep": 1,
+	"ReceiveTimeout":30
 }

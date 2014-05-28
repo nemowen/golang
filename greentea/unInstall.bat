@@ -7,4 +7,4 @@ set serviceName=SNRService
 
 REG DELETE HKLM\SYSTEM\CurrentControlSet\services\%serviceName% /va /f
 
-pauseo
+pause
