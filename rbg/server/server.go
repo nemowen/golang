@@ -138,9 +138,12 @@ func main() {
 		ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
 
 		if v, ok := clientConns[ip]; ok {
-			v.Close()
+			v = nil
+			continue
 		}
 		clientConns[ip] = conn
+		conn.SetKeepAlive(true)
+		conn.SetKeepAlivePeriod(120 * time.Second)
 		log.Info("IP [ %s ] 已经成功连接到服务器...[%d]", ip, len(clientConns))
 		go rpc.ServeConn(conn)
 	}

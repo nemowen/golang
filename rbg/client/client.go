@@ -220,7 +220,6 @@ func sendDataToServer() {
 			client = connect()
 			continue
 		}
-
 		// http 方试传输
 		// err := client.Call("Obj.SendToServer", obj, replay)
 		// if err != nil {
