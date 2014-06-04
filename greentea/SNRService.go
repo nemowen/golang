@@ -29,14 +29,14 @@ type configObj struct {
 }
 
 const (
-	DATA_S_FLAG, DATA_E_FLAG     = "*s[start]s*", "*s[output_end]s*" // 本笔结束
-	MSG_S_FLAG, MSG_E_FLAG       = "*s[", "]s*"                      // 机器信息标识位
-	I_S_DATE_FLAG, I_E_DATE_FLAG = "*d{", "}d*"                      // 数据日期标识位
-	I_S_TIME_FLAG, I_E_TIME_FLAG = "*t{", "}t*"                      // 数据时间标识位
-	I_S_NO_FLAG, I_E_NO_FLAG     = "*no{", "}no*"                    // 数据顺序号标识位
-	I_S_BN_FLAG, I_E_BN_FLAG     = "*bn{", "}bn*"                    // 数据冠字号标识位
-	M_S_DATE_FLAG, M_E_DATE_FLAG = "*d[", "]d*"                      // 机器状态：数据日期标识位
-	M_S_TIME_FLAG, M_E_TIME_FLAG = "*t[", "]t*"                      // 机器状态：数据时间标识位
+	DATA_S_FLAG, DATA_E_FLAG     = "*s[start]s*", "output_end" // 本笔结束
+	MSG_S_FLAG, MSG_E_FLAG       = "*s[", "]s*"                // 机器信息标识位
+	I_S_DATE_FLAG, I_E_DATE_FLAG = "*d{", "}d*"                // 数据日期标识位
+	I_S_TIME_FLAG, I_E_TIME_FLAG = "*t{", "}t*"                // 数据时间标识位
+	I_S_NO_FLAG, I_E_NO_FLAG     = "*no{", "}no*"              // 数据顺序号标识位
+	I_S_BN_FLAG, I_E_BN_FLAG     = "*bn{", "}bn*"              // 数据冠字号标识位
+	M_S_DATE_FLAG, M_E_DATE_FLAG = "*d[", "]d*"                // 机器状态：数据日期标识位
+	M_S_TIME_FLAG, M_E_TIME_FLAG = "*t[", "]t*"                // 机器状态：数据时间标识位
 
 	DATA_BEGIN_FLAG = "[output_begin]"
 
@@ -86,9 +86,6 @@ func init() {
 	if err == nil {
 		countTimesDay = len(files)
 	}
-
-	// 删除文件
-	os.Remove(config.IniSavePath)
 }
 
 func connectCom() {
@@ -172,10 +169,17 @@ func parse() {
 			for i := 0; i < n; i++ {
 				startIndex = bytes.Index(buffer, []byte(M_S_DATE_FLAG))
 				endIndex = bytes.Index(buffer, []byte(MSG_E_FLAG))
-				if -1 < startIndex && -1 < endIndex {
+				if -1 < startIndex && -1 < endIndex && endIndex > startIndex {
 					snrlog.WriteString(string(buffer[startIndex:endIndex+len(MSG_E_FLAG)]) + LineBreak)
 					// clear data
-					buffer = bytes.Replace(buffer, buffer[startIndex:endIndex+len(MSG_E_FLAG)], []byte(""), 1)
+					//buffer = bytes.Replace(buffer, buffer[startIndex:endIndex+len(MSG_E_FLAG)], []byte(""), 1)
+					buffer[startIndex] = '*'
+					buffer[startIndex+1] = 'o'
+					buffer[startIndex+2] = 'o'
+
+					buffer[endIndex] = 'o'
+					buffer[endIndex+1] = 'o'
+					buffer[endIndex+2] = '*'
 				}
 			}
 			if snrlog != nil {
@@ -198,6 +202,9 @@ func parse() {
 				}
 				err = nil
 
+				// 删除文件
+				os.Remove(config.IniSavePath)
+
 				// open or create SNRinfo.ini
 				snrinfo, err = os.OpenFile(config.IniSavePath, os.O_CREATE|os.O_WRONLY, 0666)
 				if err != nil {
@@ -215,7 +222,14 @@ func parse() {
 				// parse info date
 				i_date_s_index := bytes.Index(buffer, []byte(I_S_DATE_FLAG))
 				i_time_e_index := bytes.Index(buffer, []byte(I_E_TIME_FLAG))
-				buffer = bytes.Replace(buffer, buffer[i_date_s_index:i_time_e_index+len(I_E_TIME_FLAG)], []byte(""), 1)
+				//buffer = bytes.Replace(buffer, buffer[i_date_s_index:i_time_e_index+len(I_E_TIME_FLAG)], []byte(""), 1)
+				buffer[i_date_s_index] = '*'
+				buffer[i_date_s_index+1] = 'o'
+				buffer[i_date_s_index+2] = 'o'
+
+				buffer[i_time_e_index] = 'o'
+				buffer[i_time_e_index+1] = 'o'
+				buffer[i_time_e_index+2] = '*'
 
 				for i := 0; i < n; i++ {
 					snrinfo.WriteString(LineBreak)
@@ -241,7 +255,14 @@ func parse() {
 					bmpPath = filepath.Join(path, i_no_data_str+".bmp")
 
 					// clear no data
-					buffer = bytes.Replace(buffer, buffer[i_no_s_index:i_no_e_index+len(I_E_NO_FLAG)], []byte(""), 1)
+					//buffer = bytes.Replace(buffer, buffer[i_no_s_index:i_no_e_index+len(I_E_NO_FLAG)], []byte(""), 1)
+					buffer[i_no_s_index] = '*'
+					buffer[i_no_s_index+1] = 'o'
+					buffer[i_no_s_index+2] = 'o'
+
+					buffer[i_no_e_index] = 'o'
+					buffer[i_no_e_index+1] = 'o'
+					buffer[i_no_e_index+2] = '*'
 
 					// parse info bn
 					i_bn_s_index := bytes.Index(buffer, []byte(I_S_BN_FLAG))
@@ -251,7 +272,10 @@ func parse() {
 					snrinfo.WriteString("SerialNumber=" + string(i_bn_data) + LineBreak)
 
 					// clear bn data
-					buffer = bytes.Replace(buffer, buffer[i_bn_s_index:i_bn_e_index], []byte(""), 1)
+					//buffer = bytes.Replace(buffer, buffer[i_bn_s_index:i_bn_e_index], []byte(""), 1)
+					buffer[i_bn_s_index] = '*'
+					buffer[i_bn_s_index+1] = 'o'
+					buffer[i_bn_s_index+2] = 'o'
 
 					i_bmp_s_index := bytes.Index(buffer, []byte(I_E_BN_FLAG))
 					var i_bmp_e_index int
@@ -265,9 +289,15 @@ func parse() {
 						}
 						i_bmp_e_index = bytes.Index(buffer, []byte(I_S_NO_FLAG+numstr+I_E_NO_FLAG))
 					} else { // bmpEndFlag:= "*s[output_end]s*"
-						i_bmp_e_index = len(buffer)
+						//i_bmp_e_index = len(buffer)
+						i_bmp_e_index = bytes.Index(buffer, []byte(DATA_E_FLAG)) - 3
 					}
+
 					i_bmp_data := buffer[i_bmp_s_index+len(I_E_BN_FLAG) : i_bmp_e_index]
+
+					buffer[i_bmp_s_index] = 'o'
+					buffer[i_bmp_s_index+1] = 'o'
+					buffer[i_bmp_s_index+2] = '*'
 
 					// write bmp to file
 					snrinfo.WriteString("ImageFile=" + bmpPath + LineBreak)
@@ -285,7 +315,11 @@ func parse() {
 					bmpFile = nil
 
 					// clear bmp data
-					buffer = bytes.Replace(buffer, buffer[i_bmp_s_index:i_bmp_e_index], []byte(""), 1)
+					//buffer = bytes.Replace(buffer, buffer[i_bmp_s_index:i_bmp_e_index], []byte(""), 1)
+					buffer[i_bmp_s_index] = '*'
+					buffer[i_bmp_s_index+1] = 'o'
+					buffer[i_bmp_s_index+2] = 'o'
+
 					// ===============信息数据处理结束===============
 				}
 
