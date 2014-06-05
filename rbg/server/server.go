@@ -3,12 +3,15 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"gotest/rbg/config"
 	"gotest/rbg/logs"
+	"gotest/rbg/task"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"net/rpc"
 	"os"
 	"path/filepath"
@@ -90,9 +93,13 @@ func init() {
 }
 
 func main() {
-	insert_sql := "INSERT INTO T_BR(DATE,TIME,INTIME,SERIALNUMBER,TYPE,CARDID,FACEVALUE,VERSION,CURRENCYCODE,SERIALNUMBERINTIMES,BILLBN,IMAPATH,CLIENTNAME,CLIENTIP,REMARK)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+	dataClearTask := task.NewTask("dataClearTask", "30 48 23 * * * ", dataClear)
+	task.AddTask("dataClearTask", dataClearTask)
+	task.StartTask()
+
+	sql := "INSERT INTO T_BR(DATE,TIME,INTIME,SERIALNUMBER,TYPE,CARDID,FACEVALUE,VERSION,CURRENCYCODE,SERIALNUMBERINTIMES,BILLBN,IMAPATH,CLIENTNAME,CLIENTIP,REMARK)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 	var e error
-	smtp, e = dao.Prepare(insert_sql)
+	smtp, e = dao.Prepare(sql)
 	if e != nil {
 		log.Error(e.Error())
 	}
@@ -117,36 +124,37 @@ func main() {
 	}()
 
 	// http：方式
-	// exit:=make(chan bool)
-	// rpc.HandleHTTP()
-	// err := http.ListenAndServe(server_preferences.SERVER_IP_PORT, nil)
-	// checkError(err)
-	// <-exit
+	exit := make(chan bool)
+	rpc.HandleHTTP()
+	err := http.ListenAndServe(server_preferences.SERVER_IP_PORT, nil)
+	checkError(err)
+	<-exit
 
 	// tcp 方式
-	tcpAddr, err := net.ResolveTCPAddr("tcp", server_preferences.SERVER_IP_PORT)
-	checkError(err)
-	listener, err := net.ListenTCP("tcp", tcpAddr)
-	checkError(err)
+	// tcpAddr, err := net.ResolveTCPAddr("tcp", server_preferences.SERVER_IP_PORT)
+	// checkError(err)
+	// listener, err := net.ListenTCP("tcp", tcpAddr)
+	// checkError(err)
 
-	log.Info("服务端已经启动!")
-	for {
-		conn, err := listener.AcceptTCP()
-		if err != nil {
-			log.Error("rpc.Server: accept Error:%s", err)
-		}
-		ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
+	// log.Info("服务端已经启动!")
+	// for {
+	// 	conn, err := listener.AcceptTCP()
+	// 	conn.Write([]byte("ok"))
+	// 	if err != nil {
+	// 		log.Error("rpc.Server: accept Error:%s", err)
+	// 	}
+	// 	ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
 
-		if v, ok := clientConns[ip]; ok {
-			v = nil
-			continue
-		}
-		clientConns[ip] = conn
-		conn.SetKeepAlive(true)
-		conn.SetKeepAlivePeriod(120 * time.Second)
-		log.Info("IP [ %s ] 已经成功连接到服务器...[%d]", ip, len(clientConns))
-		go rpc.ServeConn(conn)
-	}
+	// 	if v, ok := clientConns[ip]; ok {
+	// 		v.Close()
+	// 		continue
+	// 	}
+	// 	clientConns[ip] = conn
+	// 	conn.SetKeepAlive(true)
+	// 	conn.SetKeepAlivePeriod(120 * time.Second)
+	// 	log.Info("IP [ %s ] 已经成功连接到服务器...[%d]", ip, len(clientConns))
+	// 	go rpc.ServeConn(conn)
+	// }
 
 }
 
@@ -198,4 +206,30 @@ func checkError(err error) {
 		log.Warn("Fatal error: %s", err.Error())
 		os.Exit(1)
 	}
+}
+
+// 清理过期数据
+func dataClear() error {
+	dayLastYear := time.Now().Add(time.Hour * -8760).Format("20060102")
+	_, err := dao.Exec("DELETE FROM T_BR WHERE DATE = ? ", dayLastYear)
+	if err != nil {
+		log.Warn("删除数据库过期数据失败: %s", err.Error())
+		return errors.New("删除数据库过期数据失败：" + err.Error())
+	}
+	files, err := ioutil.ReadDir(server_preferences.BMP_SAVE_PATH)
+	if err != nil {
+		log.Warn("未找到BMP目录: %s", err.Error())
+		return errors.New("未找到BMP目录：" + err.Error())
+	}
+	for _, file := range files {
+		clientName := file.Name()
+		fmt.Println(server_preferences.BMP_SAVE_PATH, clientName, dayLastYear)
+		err = os.RemoveAll(filepath.Join(server_preferences.BMP_SAVE_PATH, clientName, dayLastYear))
+		if err != nil {
+			log.Warn("删除过期BMP失败: %s", err.Error())
+			return errors.New("删除过期BMP失败:" + err.Error())
+		}
+	}
+	log.Info("清理过期数据成功！")
+	return nil
 }

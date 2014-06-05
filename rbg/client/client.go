@@ -108,7 +108,7 @@ func connect() (client *rpc.Client) {
 	for client == nil {
 		var e error
 		log.Info("与服务器连接中...")
-		client, e = rpc.Dial("tcp", client_preferences.SERVER_IP_PORT)
+		client, e = rpc.DialHTTP("tcp", client_preferences.SERVER_IP_PORT)
 		if e != nil {
 			log.Error("连接服务器失败,请检查网络或服务器是否启动...")
 			log.Info("%d%s", client_preferences.RECONNECT_SERVER_TIME.Nanoseconds(), "秒后自动重新连接...")
@@ -199,38 +199,39 @@ func sendDataToServer() {
 		}
 
 		// tcp 方式传输
-		c := make(chan error, 1)
-		go func() { c <- client.Call("Obj.SendToServer", obj, replay) }()
-		select {
-		case err := <-c:
-			if err != nil {
-				rebackObj = obj
-				rebackObj.Remark = "因传输异常:重传对象"
-				log.Error("[%s]上传数据失败...", obj.CurrencyNumber)
-				closeConn(client)
-				client = connect()
-				continue
-			}
-		case <-time.After(3 * time.Second):
-			rebackObj = obj
-			rebackObj.Remark = "因网络异常:重传对象"
-			log.Error("与服务器失去连接...")
-			log.Error("[%s]上传数据失败...", obj.CurrencyNumber)
-			closeConn(client)
-			client = connect()
-			continue
-		}
-		// http 方试传输
-		// err := client.Call("Obj.SendToServer", obj, replay)
-		// if err != nil {
-		// 	// 出现网络中断时，回滚并保存当前对象
+		// c := make(chan error, 1)
+		// go func() { c <- client.Call("Obj.SendToServer", obj, replay) }()
+		// select {
+		// case err := <-c:
+		// 	if err != nil {
+		// 		rebackObj = obj
+		// 		rebackObj.Remark = "因传输异常:重传对象"
+		// 		log.Error("[%s]上传数据失败...", obj.CurrencyNumber)
+		// 		closeConn(client)
+		// 		client = connect()
+		// 		continue
+		// 	}
+		// case <-time.After(3 * time.Second):
 		// 	rebackObj = obj
+		// 	rebackObj.Remark = "因网络异常:重传对象"
 		// 	log.Error("与服务器失去连接...")
+		// 	log.Error("[%s]上传数据失败...", obj.CurrencyNumber)
 		// 	closeConn(client)
-		// 	log.Info("正重新连接中...")
 		// 	client = connect()
 		// 	continue
 		// }
+
+		// http 方试传输
+		err := client.Call("Obj.SendToServer", obj, replay)
+		if err != nil {
+			// 出现网络中断时，回滚并保存当前对象
+			rebackObj = obj
+			log.Error("与服务器失去连接...")
+			closeConn(client)
+			log.Info("正重新连接中...")
+			client = connect()
+			continue
+		}
 
 		log.Trace("[%s] STATE:%s", obj.CurrencyNumber, *replay)
 		if config.SAVE_TO_DB_ERROR == *replay || config.SAVE_BMP_ERROR == *replay {
