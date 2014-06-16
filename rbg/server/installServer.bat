@@ -11,5 +11,7 @@ REG ADD HKLM\SYSTEM\CURRENTCONTROLSET\SERVICES\%serviceName%\Parameters /f /v Ap
 REG ADD HKLM\SYSTEM\CURRENTCONTROLSET\SERVICES\%serviceName%\Parameters /f /v Application /t REG_SZ /d %thisPath%\server.exe
 REG ADD HKLM\SYSTEM\CURRENTCONTROLSET\SERVICES\%serviceName%\Parameters /f /v AppParameters /t REG_SZ /d 1
 
+net start %serviceName%
+
 echo "[Successful]"
 pause

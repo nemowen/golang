@@ -25,8 +25,6 @@ type ClientConfig struct {
 	RECONNECT_SERVER_TIME time.Duration
 	// 客户端设置名称
 	CLIENT_NAME string
-	// 日志文件保存路径
-	LOG_SAVE_PATH string
 }
 
 type ServerConfig struct {
@@ -44,6 +42,4 @@ type ServerConfig struct {
 	DB_MAX_IDLE_CONNS int
 	// 最大连接数
 	DB_MAX_OPEN_CONNS int
-	// 日志文件保存路径
-	LOG_SAVE_PATH string
 }

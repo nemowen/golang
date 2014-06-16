@@ -51,18 +51,22 @@ var (
 func init() {
 	// 加载配置文件
 	pwd, _ := os.Getwd()
-	pwd = filepath.Join(pwd, "Client.Preferences.json")
-	file, e := ioutil.ReadFile(pwd)
+	file, e := ioutil.ReadFile(filepath.Join(pwd, "Client.Preferences.json"))
 	if e != nil {
 		panic("读取配置文件失败！请与管理员联系！")
 		os.Exit(1)
 	}
 	json.Unmarshal(file, &client_preferences)
-
 	// 日志初始化
 	log = logs.NewLogger(10000)
 	// 日志文件记录
-	log.SetLogger("file", `{"filename":"`+client_preferences.LOG_SAVE_PATH+`"}`)
+	logfile := filepath.Join(pwd, "logs", "client.log")
+	os.MkdirAll(logfile[0:len(logfile)-10], 0666)
+	_, e = os.Stat(logfile)
+	if nil != e {
+		os.Create(logfile)
+	}
+	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`"}`)
 	// 日志终端记录
 	log.SetLogger("console", "")
 	// log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
@@ -180,20 +184,24 @@ func sendDataToServer() {
 			obj.CurrencyCode, _ = strconv.Atoi(items[7])
 			obj.SerialNumberInTimes, _ = strconv.Atoi(items[8])
 			obj.CurrencyNumber = items[9]
-			obj.ImaPath = items[10]
 			obj.ClientIP = ip
 			obj.ClientName = client_preferences.CLIENT_NAME
 
 			// 读取图像数据
-			f, e := os.Open(obj.ImaPath)
-			if e != nil {
-				log.Error("读取图像数据失败：[%s] (%s)", obj.SerialNumber, e)
-			}
-			b, _ := ioutil.ReadAll(f)
-			f.Read(b)
-			closeFile(f)
+			if 11 == len(items) {
+				obj.ImaPath = items[10]
 
-			obj.Ima = b
+				f, e := os.Open(obj.ImaPath)
+				if e != nil {
+					log.Error("读取图像数据失败：[%s] (%s)", obj.SerialNumber, e)
+				}
+				b, _ := ioutil.ReadAll(f)
+				f.Read(b)
+				closeFile(f)
+
+				obj.Ima = b
+			}
+
 		} else {
 			obj = rebackObj
 		}

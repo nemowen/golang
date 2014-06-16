@@ -21,6 +21,7 @@ func sendMail(messages string) {
 	if e != nil {
 		fmt.Println(e)
 	}
+
 }
 
 func main() {

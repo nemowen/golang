@@ -51,27 +51,29 @@ type Obj struct {
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 	// 图像保存
-	obj.ImaPath = filepath.Join(server_preferences.BMP_SAVE_PATH, obj.ClientName, obj.Date, obj.SerialNumber+".bmp")
-REGO:
-	f, err := os.Create(obj.ImaPath)
-	if err != nil {
-		err = os.MkdirAll(obj.ImaPath[:strings.LastIndex(obj.ImaPath, "\\")], 0666)
+	if "" != obj.ImaPath {
+		obj.ImaPath = filepath.Join(server_preferences.BMP_SAVE_PATH, obj.ClientName, obj.Date, obj.SerialNumber+".bmp")
+	REGO:
+		f, err := os.Create(obj.ImaPath)
 		if err != nil {
-			log.Error("保存bmp失败：%s", obj.SerialNumber)
-			*replay = config.SAVE_BMP_ERROR
-			return nil
+			err = os.MkdirAll(obj.ImaPath[:strings.LastIndex(obj.ImaPath, "\\")], 0666)
+			if err != nil {
+				log.Error("保存bmp失败：%s", obj.SerialNumber)
+				*replay = config.SAVE_BMP_ERROR
+				return nil
+			}
+			log.Info("创建目录：", obj.ClientName)
+			goto REGO
 		}
-		log.Info("创建目录：", obj.ClientName)
-		goto REGO
+		defer f.Close()
+		f.Write(obj.Ima)
 	}
-	defer f.Close()
-	f.Write(obj.Ima)
 
 	// 数据存库
 
 	//insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
 	str_time, _ := time.Parse("2006-01-02 15:04:05", (obj.Date[0:4] + "-" + obj.Date[4:6] + "-" + obj.Date[6:8] + " " + obj.Time))
-	_, err = smtp.Exec(obj.Date, obj.Time, str_time, obj.SerialNumber, obj.Type, obj.CardId, obj.FaceValue, obj.Version, obj.CurrencyCode, obj.SerialNumberInTimes, obj.CurrencyNumber, obj.ImaPath, obj.ClientName, obj.ClientIP, obj.Remark)
+	_, err := smtp.Exec(obj.Date, obj.Time, str_time, obj.SerialNumber, obj.Type, obj.CardId, obj.FaceValue, obj.Version, obj.CurrencyCode, obj.SerialNumberInTimes, obj.CurrencyNumber, obj.ImaPath, obj.ClientName, obj.ClientIP, obj.Remark)
 	if err != nil {
 		log.Error("%s%s", "保存到数据库失败：", obj.CurrencyNumber)
 		log.Error("%s", err)
@@ -84,11 +86,6 @@ REGO:
 
 func init() {
 	loadConfig()
-	log = logs.NewLogger(100000)
-	log.SetLogger("file", `{"filename":"`+server_preferences.LOG_SAVE_PATH+`"}`)
-	log.SetLogger("console", "")
-	// log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"'sytwgmail%100s.","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
-
 	openDB()
 }
 
@@ -161,15 +158,22 @@ func main() {
 // 加载配置文件
 func loadConfig() {
 	pwd, _ := os.Getwd()
-	pwd = filepath.Join(pwd, "Server.Preferences.json")
-	file, e := ioutil.ReadFile(pwd)
+	file, e := ioutil.ReadFile(filepath.Join(pwd, "Server.Preferences.json"))
 	if e != nil {
-		fmt.Println("读取配置文件失败!请与管理员联系!")
+		fmt.Println("读取配置文件失败!请与管理员联系!" + e.Error())
 		os.Exit(1)
 	}
 
+	logfile := filepath.Join(pwd, "logs", "server.log")
+	os.MkdirAll(logfile[0:len(logfile)-10], 0666)
+	log = logs.NewLogger(100000)
+	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`"}`)
+	log.SetLogger("console", "")
 	server_preferences = new(config.ServerConfig)
-	json.Unmarshal(file, server_preferences)
+	e = json.Unmarshal(file, server_preferences)
+	if e != nil {
+		os.Exit(2)
+	}
 }
 
 // 获取数据库
