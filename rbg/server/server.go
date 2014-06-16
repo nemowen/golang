@@ -86,11 +86,25 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 
 func init() {
 	loadConfig()
+	// 日志初始化
+	log = logs.NewLogger(10000)
+	// 日志文件记录
+	logfile := filepath.Join(pwd, "logs", "server.log")
+	os.MkdirAll(logfile[0:len(logfile)-10], 0666)
+	_, e = os.Stat(logfile)
+	if nil != e {
+		os.Create(logfile)
+	}
+	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`"}`)
+	// 日志终端记录
+	log.SetLogger("console", "")
+
 	openDB()
 }
 
 func main() {
-	dataClearTask := task.NewTask("dataClearTask", "30 48 23 * * * ", dataClear)
+	// 以下为清理过期数据，每天22点，23点各执行一次
+	dataClearTask := task.NewTask("dataClearTask", "00 00 22,23 * * * ", dataClear)
 	task.AddTask("dataClearTask", dataClearTask)
 	task.StartTask()
 
@@ -178,8 +192,7 @@ func loadConfig() {
 
 // 获取数据库
 func openDB() {
-	config := server_preferences
-	db, err := sql.Open("mysql", config.DATABASE_USER_NAME+":"+config.DATABASE_PASSWORD+"@tcp(127.0.0.1:3306)/"+config.DATABASE_NAME+"?charset=utf8") // &timeout=60s
+	db, err := sql.Open("mysql", server_preferences.DATABASE_USER_NAME+":"+server_preferences.DATABASE_PASSWORD+"@tcp(127.0.0.1:3306)/"+server_preferences.DATABASE_NAME+"?charset=utf8") // &timeout=60s
 	if err != nil {
 		errmsg := "错误：连接数据库连接失败!"
 		fmt.Println(errmsg)
@@ -187,12 +200,12 @@ func openDB() {
 	}
 	err = db.Ping()
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println(">>>>", err.Error())
 		os.Exit(1)
 	}
 
-	db.SetMaxIdleConns(config.DB_MAX_IDLE_CONNS)
-	db.SetMaxOpenConns(config.DB_MAX_OPEN_CONNS)
+	db.SetMaxIdleConns(server_preferences.DB_MAX_IDLE_CONNS)
+	db.SetMaxOpenConns(server_preferences.DB_MAX_OPEN_CONNS)
 	dao = db
 
 }
@@ -214,7 +227,7 @@ func checkError(err error) {
 
 // 清理过期数据
 func dataClear() error {
-	dayLastYear := time.Now().Add(time.Hour * -8760).Format("20060102")
+	dayLastYear := time.Now().Add(time.Hour * -(server_preferences.DATA_KEEPING_DAYS * 24)).Format("20060102")
 	_, err := dao.Exec("DELETE FROM T_BR WHERE DATE = ? ", dayLastYear)
 	if err != nil {
 		log.Warn("删除数据库过期数据失败: %s", err.Error())
