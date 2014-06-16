@@ -86,18 +86,6 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 
 func init() {
 	loadConfig()
-	// 日志初始化
-	log = logs.NewLogger(10000)
-	// 日志文件记录
-	logfile := filepath.Join(pwd, "logs", "server.log")
-	os.MkdirAll(logfile[0:len(logfile)-10], 0666)
-	_, e = os.Stat(logfile)
-	if nil != e {
-		os.Create(logfile)
-	}
-	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`"}`)
-	// 日志终端记录
-	log.SetLogger("console", "")
 
 	openDB()
 }
@@ -181,6 +169,10 @@ func loadConfig() {
 	logfile := filepath.Join(pwd, "logs", "server.log")
 	os.MkdirAll(logfile[0:len(logfile)-10], 0666)
 	log = logs.NewLogger(100000)
+	_, e = os.Stat(logfile)
+	if nil != e {
+		os.Create(logfile)
+	}
 	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`"}`)
 	log.SetLogger("console", "")
 	server_preferences = new(config.ServerConfig)
