@@ -126,7 +126,10 @@ func main() {
 	exit := make(chan bool)
 	rpc.HandleHTTP()
 	err := http.ListenAndServe(server_preferences.SERVER_IP_PORT, nil)
-	checkError(err)
+	if err != nil {
+		log.Error("绑定IP失败，请检查IP与端口是否正确! [%s]", server_preferences.SERVER_IP_PORT)
+		//exit(1)
+	}
 	<-exit
 
 	// tcp 方式
@@ -207,13 +210,6 @@ func CloseConn() {
 	if nil != dao {
 		dao.Close()
 		dao = nil
-	}
-}
-
-func checkError(err error) {
-	if err != nil {
-		log.Warn("Fatal error: %s", err.Error())
-		os.Exit(1)
 	}
 }
 
