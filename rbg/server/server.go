@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"gotest/rbg/config"
@@ -92,7 +91,7 @@ func init() {
 
 func main() {
 	// 以下为清理过期数据，每天22点，23点各执行一次
-	dataClearTask := task.NewTask("dataClearTask", "00 00 22,23 * * * ", dataClear)
+	dataClearTask := task.NewTask("dataClearTask", "00 40 17,18 * * * ", dataClear)
 	task.AddTask("dataClearTask", dataClearTask)
 	task.StartTask()
 
@@ -219,12 +218,12 @@ func dataClear() error {
 	_, err := dao.Exec("DELETE FROM T_BR WHERE DATE = ? ", dayLastYear)
 	if err != nil {
 		log.Warn("删除数据库过期数据失败: %s", err.Error())
-		return errors.New("删除数据库过期数据失败：" + err.Error())
+		//return errors.New("删除数据库过期数据失败：" + err.Error())
 	}
 	files, err := ioutil.ReadDir(server_preferences.BMP_SAVE_PATH)
 	if err != nil {
 		log.Warn("未找到BMP目录: %s", err.Error())
-		return errors.New("未找到BMP目录：" + err.Error())
+		//return errors.New("未找到BMP目录：" + err.Error())
 	}
 	for _, file := range files {
 		clientName := file.Name()
@@ -232,7 +231,7 @@ func dataClear() error {
 		err = os.RemoveAll(filepath.Join(server_preferences.BMP_SAVE_PATH, clientName, dayLastYear))
 		if err != nil {
 			log.Warn("删除过期BMP失败: %s", err.Error())
-			return errors.New("删除过期BMP失败:" + err.Error())
+			//return errors.New("删除过期BMP失败:" + err.Error())
 		}
 	}
 	log.Info("清理过期数据成功！")

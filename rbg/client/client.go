@@ -66,7 +66,7 @@ func init() {
 	if nil != e {
 		os.Create(logfile)
 	}
-	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`"}`)
+	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`","level":2}`)
 	// 日志终端记录
 	log.SetLogger("console", "")
 	// log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
