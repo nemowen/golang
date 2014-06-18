@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"gotest/rbg/config"
@@ -15,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -91,7 +93,7 @@ func init() {
 
 func main() {
 	// 以下为清理过期数据，每天22点，23点各执行一次
-	dataClearTask := task.NewTask("dataClearTask", "00 40 17,18 * * * ", dataClear)
+	dataClearTask := task.NewTask("dataClearTask", "00 59 23, * * * ", dataClear)
 	task.AddTask("dataClearTask", dataClearTask)
 	task.StartTask()
 
@@ -214,25 +216,33 @@ func CloseConn() {
 
 // 清理过期数据
 func dataClear() error {
-	dayLastYear := time.Now().Add(time.Hour * -(server_preferences.DATA_KEEPING_DAYS * 24)).Format("20060102")
-	_, err := dao.Exec("DELETE FROM T_BR WHERE DATE = ? ", dayLastYear)
+	clearDataDay := time.Now().Add(time.Hour * -(server_preferences.DATA_KEEPING_DAYS * 24))
+	_, err := dao.Exec("DELETE FROM T_BR WHERE INTIME <= ? ", clearDataDay)
 	if err != nil {
 		log.Warn("删除数据库过期数据失败: %s", err.Error())
-		//return errors.New("删除数据库过期数据失败：" + err.Error())
+		return errors.New("删除数据库过期数据失败：" + err.Error())
 	}
 	files, err := ioutil.ReadDir(server_preferences.BMP_SAVE_PATH)
 	if err != nil {
 		log.Warn("未找到BMP目录: %s", err.Error())
-		//return errors.New("未找到BMP目录：" + err.Error())
+		return errors.New("未找到BMP目录：" + err.Error())
 	}
+	clearDataDayInt, _ := strconv.Atoi(clearDataDay.Format("20060102"))
 	for _, file := range files {
-		clientName := file.Name()
-		fmt.Println(server_preferences.BMP_SAVE_PATH, clientName, dayLastYear)
-		err = os.RemoveAll(filepath.Join(server_preferences.BMP_SAVE_PATH, clientName, dayLastYear))
-		if err != nil {
-			log.Warn("删除过期BMP失败: %s", err.Error())
-			//return errors.New("删除过期BMP失败:" + err.Error())
+		// 读取每个客户端BMP目录
+		dayBmpfiles, _ := ioutil.ReadDir(filepath.Join(server_preferences.BMP_SAVE_PATH, file.Name()))
+		for _, bmpDir := range dayBmpfiles {
+			bmpDirName, _ := strconv.Atoi(bmpDir.Name())
+			if bmpDirName <= clearDataDayInt {
+				err = os.RemoveAll(filepath.Join(server_preferences.BMP_SAVE_PATH, file.Name(), bmpDir.Name()))
+				if err != nil {
+					log.Warn("删除过期BMP失败: %s", err.Error())
+					return errors.New("删除过期BMP失败:" + err.Error())
+				}
+				log.Info("客户端:[%s] %s bmp数据已经清理", file.Name(), bmpDir.Name())
+			}
 		}
+
 	}
 	log.Info("清理过期数据成功！")
 	return nil

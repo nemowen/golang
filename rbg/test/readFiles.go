@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
 )
 
 func main() {
@@ -13,5 +16,8 @@ func main() {
 	}
 	defer f.Close()
 	f.WriteString("OK")
+
+	dayLastYear, _ := strconv.Atoi(time.Now().Add(time.Hour * -(1 * 24)).Format("20060102"))
+	fmt.Printf("%v", dayLastYear)
 
 }
