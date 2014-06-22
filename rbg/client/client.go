@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"gotest/rbg/config"
 	"gotest/rbg/logs"
 	"io/ioutil"
@@ -53,7 +54,8 @@ func init() {
 	pwd, _ := os.Getwd()
 	file, e := ioutil.ReadFile(filepath.Join(pwd, "Client.Preferences.json"))
 	if e != nil {
-		panic("读取配置文件失败！请与管理员联系！")
+		fmt.Println("读取配置文件失败！请检查Client.Preferences.json是否在当前目录！")
+		time.Sleep(30 * time.Second)
 		os.Exit(1)
 	}
 	json.Unmarshal(file, &client_preferences)
@@ -72,8 +74,6 @@ func init() {
 	// log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
 
 	ip = getLocalIPAddr()
-
-	log.Info("IP:[%s]", ip)
 
 	// 开始连接服务器
 	client = connect()
@@ -109,9 +109,9 @@ func main() {
 
 // 连接服务器
 func connect() (client *rpc.Client) {
+	var e error
 	for client == nil {
-		var e error
-		log.Info("与服务器连接中...")
+		log.Info("与 [%s] 服务器连接中...", client_preferences.SERVER_IP_PORT)
 		client, e = rpc.DialHTTP("tcp", client_preferences.SERVER_IP_PORT)
 		if e != nil {
 			log.Error("连接服务器失败,请检查网络或服务器是否启动...")
@@ -150,8 +150,19 @@ func NewWatcher(filepath string, reply chan string, read chan bool) {
 
 // 收集数据到服务器
 func sendDataToServer() {
-	log.Info("正在上传数据...")
+	// fi, ei := os.Create(client_preferences.FLAG_FILE_PATH)
+	// if ei != nil {
+	// 	log.Warn("打开文件失败：", client_preferences.FLAG_FILE_PATH)
+	// }
+	// // 将Flag标识位置为READYING
+	// fi.WriteString("READYING")
+	// if fi != nil {
+	// 	fi.Close()
+	// }
+
+	log.Debug("正在上传数据...")
 	t = time.Now()
+
 	// 获取note文件
 	f, e := os.Open(client_preferences.NOTE_FILE_PATH)
 	if e != nil {
@@ -168,7 +179,7 @@ func sendDataToServer() {
 		// 如果回滚对象为空，正常运行，否则先处理上次失败的对象
 		if rebackObj == nil {
 			line, err = noteBufer.ReadString('\n')
-			if 10 > len(line) {
+			if 1 > len(line) {
 				log.Warn("数据有误:%s", line)
 				continue
 			}

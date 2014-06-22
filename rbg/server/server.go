@@ -63,7 +63,7 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 				*replay = config.SAVE_BMP_ERROR
 				return nil
 			}
-			log.Info("创建目录：", obj.ClientName)
+			log.Info("创建目录：%s", obj.ClientName)
 			goto REGO
 		}
 		defer f.Close()
@@ -87,8 +87,6 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 
 func init() {
 	loadConfig()
-
-	openDB()
 }
 
 func main() {
@@ -96,6 +94,8 @@ func main() {
 	dataClearTask := task.NewTask("dataClearTask", "00 59 23, * * * ", dataClear)
 	task.AddTask("dataClearTask", dataClearTask)
 	task.StartTask()
+
+	openDB()
 
 	sql := "INSERT INTO T_BR(DATE,TIME,INTIME,SERIALNUMBER,TYPE,CARDID,FACEVALUE,VERSION,CURRENCYCODE,SERIALNUMBERINTIMES,BILLBN,IMAPATH,CLIENTNAME,CLIENTIP,REMARK)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 	var e error
@@ -123,14 +123,17 @@ func main() {
 		}
 	}()
 
+	log.Info("服务端已经启动! ")
+
 	// http：方式
 	exit := make(chan bool)
 	rpc.HandleHTTP()
 	err := http.ListenAndServe(server_preferences.SERVER_IP_PORT, nil)
 	if err != nil {
-		log.Error("绑定IP失败，请检查IP与端口是否正确! [%s]", server_preferences.SERVER_IP_PORT)
+		log.Error("绑定 %s 失败，请检查IP与端口是否正确! [%s]", server_preferences.SERVER_IP_PORT, err.Error())
 		//exit(1)
 	}
+
 	<-exit
 
 	// tcp 方式
@@ -139,7 +142,7 @@ func main() {
 	// listener, err := net.ListenTCP("tcp", tcpAddr)
 	// checkError(err)
 
-	// log.Info("服务端已经启动!")
+	//
 	// for {
 	// 	conn, err := listener.AcceptTCP()
 	// 	conn.Write([]byte("ok"))
@@ -166,7 +169,8 @@ func loadConfig() {
 	pwd, _ := os.Getwd()
 	file, e := ioutil.ReadFile(filepath.Join(pwd, "Server.Preferences.json"))
 	if e != nil {
-		fmt.Println("读取配置文件失败!请与管理员联系!" + e.Error())
+		fmt.Println("读取配置文件失败！请检查Server.Preferences.json是否在当前目录！")
+		time.Sleep(30 * time.Second)
 		os.Exit(1)
 	}
 
@@ -182,22 +186,29 @@ func loadConfig() {
 	server_preferences = new(config.ServerConfig)
 	e = json.Unmarshal(file, server_preferences)
 	if e != nil {
-		os.Exit(2)
+		fmt.Println("解析配置文件失败!" + e.Error())
+		//os.Exit(2)
 	}
 }
 
 // 获取数据库
 func openDB() {
+
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+			time.Sleep(30 * time.Second)
+			os.Exit(1)
+		}
+	}()
+
 	db, err := sql.Open("mysql", server_preferences.DATABASE_USER_NAME+":"+server_preferences.DATABASE_PASSWORD+"@tcp(127.0.0.1:3306)/"+server_preferences.DATABASE_NAME+"?charset=utf8") // &timeout=60s
 	if err != nil {
-		errmsg := "错误：连接数据库连接失败!"
-		fmt.Println(errmsg)
-		os.Exit(1)
+		panic("错误：打开数据库失败: " + err.Error())
 	}
 	err = db.Ping()
 	if err != nil {
-		fmt.Println(">>>>", err.Error())
-		os.Exit(1)
+		panic("错误：连接数据库失败:" + err.Error())
 	}
 
 	db.SetMaxIdleConns(server_preferences.DB_MAX_IDLE_CONNS)
@@ -244,6 +255,6 @@ func dataClear() error {
 		}
 
 	}
-	log.Info("清理过期数据成功！")
+	log.Info("成功清理%d天以前的数据！", server_preferences.DATA_KEEPING_DAYS)
 	return nil
 }
