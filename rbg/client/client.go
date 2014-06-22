@@ -50,8 +50,9 @@ var (
 )
 
 func init() {
-	// 加载配置文件
+	// 取得当前目录
 	pwd, _ := os.Getwd()
+	// 加载配置文件
 	file, e := ioutil.ReadFile(filepath.Join(pwd, "Client.Preferences.json"))
 	if e != nil {
 		fmt.Println("读取配置文件失败！请检查Client.Preferences.json是否在当前目录！")
@@ -59,6 +60,7 @@ func init() {
 		os.Exit(1)
 	}
 	json.Unmarshal(file, &client_preferences)
+
 	// 日志初始化
 	log = logs.NewLogger(10000)
 	// 日志文件记录
@@ -71,7 +73,7 @@ func init() {
 	log.SetLogger("file", `{"filename":"`+strings.Replace(logfile, "\\", "/", -1)+`","level":2}`)
 	// 日志终端记录
 	log.SetLogger("console", "")
-	// log.SetLogger("smtp", `{"username":"nemo.emails@gmail.com","password":"","host":"smtp.gmail.com:587","sendTos":["wenbin171@163.com"],"level":4}`)
+	// log.SetLogger("smtp", `{"username":"email address","password":"","host":"smtp.gmail.com:587","sendTos":["email address"],"level":4}`)
 
 	ip = getLocalIPAddr()
 

@@ -10,7 +10,7 @@ import (
 	"gotest/rbg/logs"
 	"gotest/rbg/task"
 	"io/ioutil"
-	"net"
+	//"net"
 	"net/http"
 	"net/rpc"
 	"os"
@@ -22,11 +22,11 @@ import (
 )
 
 var (
-	server_preferences *config.ServerConfig    // 配置文件实例
-	dao                *sql.DB                 // 数据库实例
-	log                *logs.BeeLogger         // 日志实例
-	clientConns        map[string]*net.TCPConn // 每个客户端的连接集合
-	smtp               *sql.Stmt
+	server_preferences *config.ServerConfig // 配置文件实例
+	dao                *sql.DB              // 数据库实例
+	log                *logs.BeeLogger      // 日志实例
+	//clientConns        map[string]*net.TCPConn // 每个客户端的连接集合
+	smtp *sql.Stmt
 )
 
 // 需要传输数据的结构
@@ -71,7 +71,6 @@ func (o *Obj) SendToServer(obj *Obj, replay *string) error {
 	}
 
 	// 数据存库
-
 	//insert_sql := "INSERT INTO T_BR(SDATE,STIME,INTIME,CARDID,BILLNO,BILLBN) VALUES(?,?,?,?,?,?)"
 	str_time, _ := time.Parse("2006-01-02 15:04:05", (obj.Date[0:4] + "-" + obj.Date[4:6] + "-" + obj.Date[6:8] + " " + obj.Time))
 	_, err := smtp.Exec(obj.Date, obj.Time, str_time, obj.SerialNumber, obj.Type, obj.CardId, obj.FaceValue, obj.Version, obj.CurrencyCode, obj.SerialNumberInTimes, obj.CurrencyNumber, obj.ImaPath, obj.ClientName, obj.ClientIP, obj.Remark)
@@ -90,13 +89,15 @@ func init() {
 }
 
 func main() {
+	// 打开数据库，并连接
+	openDB()
+
 	// 以下为清理过期数据，每天22点，23点各执行一次
 	dataClearTask := task.NewTask("dataClearTask", "00 59 23, * * * ", dataClear)
 	task.AddTask("dataClearTask", dataClearTask)
 	task.StartTask()
 
-	openDB()
-
+	// 预编译插入数据语句
 	sql := "INSERT INTO T_BR(DATE,TIME,INTIME,SERIALNUMBER,TYPE,CARDID,FACEVALUE,VERSION,CURRENCYCODE,SERIALNUMBERINTIMES,BILLBN,IMAPATH,CLIENTNAME,CLIENTIP,REMARK)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 	var e error
 	smtp, e = dao.Prepare(sql)
@@ -104,24 +105,28 @@ func main() {
 		log.Error(e.Error())
 	}
 	defer smtp.Close()
+
+	// 调用多CPU
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
+
 	defer dao.Close()
-	clientConns = make(map[string]*net.TCPConn, 100)
+
+	//clientConns = make(map[string]*net.TCPConn, 100)
 
 	u := new(Obj)
 	rpc.Register(u)
 
-	go func() {
-		for {
-			select {
-			case <-time.After(3 * time.Second):
-				for k, v := range clientConns {
-					log.Info("%s,%v", k, v)
-				}
-			}
-		}
-	}()
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-time.After(3 * time.Second):
+	// 			for k, v := range clientConns {
+	// 				log.Info("%s,%v", k, v)
+	// 			}
+	// 		}
+	// 	}
+	// }()
 
 	log.Info("服务端已经启动! ")
 
@@ -194,6 +199,7 @@ func loadConfig() {
 // 获取数据库
 func openDB() {
 
+	// 检查数据库连接是否有误
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -202,16 +208,19 @@ func openDB() {
 		}
 	}()
 
+	// 打开数据库
 	db, err := sql.Open("mysql", server_preferences.DATABASE_USER_NAME+":"+server_preferences.DATABASE_PASSWORD+"@tcp(127.0.0.1:3306)/"+server_preferences.DATABASE_NAME+"?charset=utf8") // &timeout=60s
 	if err != nil {
 		panic("错误：打开数据库失败: " + err.Error())
 	}
+	// 测试连接数据库
 	err = db.Ping()
 	if err != nil {
 		panic("错误：连接数据库失败:" + err.Error())
 	}
-
+	// 设置数据库最大空间连接数
 	db.SetMaxIdleConns(server_preferences.DB_MAX_IDLE_CONNS)
+	// 设置数据库最大连接数
 	db.SetMaxOpenConns(server_preferences.DB_MAX_OPEN_CONNS)
 	dao = db
 
