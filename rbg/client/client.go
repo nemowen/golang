@@ -181,8 +181,8 @@ func sendDataToServer() {
 		// 如果回滚对象为空，正常运行，否则先处理上次失败的对象
 		if rebackObj == nil {
 			line, err = noteBufer.ReadString('\n')
-			if 1 > len(line) {
-				log.Warn("数据有误:%s", line)
+			if 10 > len(line) {
+				//log.Warn("数据有误:%s", line)
 				continue
 			}
 			line = strings.TrimRight(line, "\r\n")
@@ -200,7 +200,7 @@ func sendDataToServer() {
 			obj.ClientIP = ip
 			obj.ClientName = client_preferences.CLIENT_NAME
 
-			// 读取图像数据
+			// 当有图像字段时，读取图像数据
 			if 11 == len(items) {
 				obj.ImaPath = items[10]
 

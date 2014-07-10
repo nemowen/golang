@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"gotest/rbg/config"
+	_ "gotest/rbg/go-sql-driver/mysql"
 	"gotest/rbg/logs"
 	"gotest/rbg/task"
 	"io/ioutil"
@@ -51,7 +51,7 @@ type Obj struct {
 
 // 接收数据处理方法
 func (o *Obj) SendToServer(obj *Obj, replay *string) error {
-	// 图像保存
+	// 图像保存，当有图像地址的时候
 	if "" != obj.ImaPath {
 		obj.ImaPath = filepath.Join(server_preferences.BMP_SAVE_PATH, obj.ClientName, obj.Date, obj.SerialNumber+".bmp")
 	REGO:
@@ -93,7 +93,7 @@ func main() {
 	openDB()
 
 	// 以下为清理过期数据，每天22点，23点各执行一次
-	dataClearTask := task.NewTask("dataClearTask", "00 59 23, * * * ", dataClear)
+	dataClearTask := task.NewTask("dataClearTask", "00 59 23 * * * ", dataClear)
 	task.AddTask("dataClearTask", dataClearTask)
 	task.StartTask()
 
@@ -179,6 +179,7 @@ func loadConfig() {
 		os.Exit(1)
 	}
 
+	// 日志文件
 	logfile := filepath.Join(pwd, "logs", "server.log")
 	os.MkdirAll(logfile[0:len(logfile)-10], 0666)
 	log = logs.NewLogger(100000)
@@ -241,6 +242,8 @@ func dataClear() error {
 	if err != nil {
 		log.Warn("删除数据库过期数据失败: %s", err.Error())
 		return errors.New("删除数据库过期数据失败：" + err.Error())
+	} else {
+		log.Info("删除数据库过期数据成功!")
 	}
 	files, err := ioutil.ReadDir(server_preferences.BMP_SAVE_PATH)
 	if err != nil {
@@ -258,11 +261,11 @@ func dataClear() error {
 				if err != nil {
 					log.Warn("删除过期BMP失败: %s", err.Error())
 					return errors.New("删除过期BMP失败:" + err.Error())
+				} else {
+					log.Info("客户端:[%s] %s bmp数据已经清理", file.Name(), bmpDir.Name())
 				}
-				log.Info("客户端:[%s] %s bmp数据已经清理", file.Name(), bmpDir.Name())
 			}
 		}
-
 	}
 	log.Info("成功清理%d天以前的数据！", server_preferences.DATA_KEEPING_DAYS)
 	return nil
