@@ -7,7 +7,8 @@ import (
 )
 
 func main() {
-	db, err := sql.Open("postgres", "user=postgres password=wenbin dbname=postgres sslmode=disable")
+	db, err := sql.Open("postgres", "user=postgres password=wenbin host=192.168.0.102 "+
+		"port=5432 dbname=postgres sslmode=disable")
 	checkErr(err)
 
 	//插入数据
@@ -16,7 +17,8 @@ func main() {
 	var querystr = "AC3934812342"
 
 	//查询数据
-	rows, err := db.Query("SELECT b.number_str, b.name, similarity($1,b.number_str) a FROM test b where similarity($2,b.number_str) > 0.1 order by a desc", querystr, querystr)
+	rows, err := db.Query("SELECT b.number_str, b.name, similarity($1,b.number_str) a "+
+		"FROM test b where similarity($2,b.number_str) > 0.1 order by a desc", querystr, querystr)
 	checkErr(err)
 
 	for rows.Next() {

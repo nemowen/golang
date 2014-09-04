@@ -1,38 +1,39 @@
 package main
 
 import (
+	//"bytes"
 	"fmt"
-	"github.com/fzzy/radix/redis"
+	//"github.com/fzzy/radix/extra/pubsub" // 发布订阅不太好用
+	//"github.com/fzzy/radix/redis" //发布订阅在 extra包中
+	//"github.com/hoisie/redis" //还有一些命令未实现,如watch, unwatch
+	redis "github.com/alphazero/Go-Redis" //这个比较好用
 	"os"
 	"time"
 )
 
 func main() {
 	// 连接redis
-	client, err := redis.DialTimeout("tcp", "192.168.202.128:6379", time.Duration(10)*time.Second)
+	var spec *redis.ConnectionSpec = new(redis.ConnectionSpec)
+	spec.Host("127.0.0.1")
+	spec.Port(6379)
+	spec.Heartbeat(time.Duration(5) * time.Second)
+
+	redisClient, err := redis.NewAsynchClientWithSpec(spec)
 	checkErr(err)
-	defer client.Close()
+	client, err := redis.NewPubSubClientWithSpec(spec)
+	checkErr(err)
+	client.Subscribe("htime.me")
 
-	// 验证
-	r := client.Cmd("auth", "wenbin")
+	redisClient.Publish("htime.me", []byte("哈哈哈"))
 
-	// 选择数据库
-	r = client.Cmd("select", 0)
-
-	// 清空当前数据库
-	//r = client.Cmd("flushdb")
-
-	// 写入一个Key:aa value:aa
-	r = client.Cmd("set", "aa", "aa")
-
-	// 取得key:aa 的值
-	s, _ := client.Cmd("get", "aa").Str()
-	fmt.Println("echo:", s)
-
-	r = client.Cmd("hgetall", "myhash")
-	for id, v := range r.Elems {
-		fmt.Printf("id:%d, %s\n", id, v.String())
+	chans := client.Messages("htime.me")
+	for {
+		select {
+		case s := <-chans:
+			fmt.Println(string(s))
+		}
 	}
+
 }
 
 func checkErr(err error) {

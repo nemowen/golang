@@ -18,6 +18,7 @@ func main() {
 		panic("未发现网卡地址")
 		os.Exit(1)
 	}
+
 	handwareAddrs = make(map[string]string, len(Interface))
 	for _, inter := range Interface {
 		inMAC := strings.ToUpper(inter.HardwareAddr.String())

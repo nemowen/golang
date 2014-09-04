@@ -2,20 +2,26 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"time"
+	"unsafe"
 )
 
+type data struct {
+	x [1024 * 100]byte
+}
+
+func test() uintptr {
+	data := &data{}
+	return data
+}
+
 func main() {
-	var fs = [4]func(){}
-	for i := 0; i < 4; i++ {
-		defer fmt.Println("defer i = ", i)
-		defer func() {
-			fmt.Println("defer_closure i = ", i)
-		}()
-		fs[i] = func() {
-			fmt.Println("closure i = ", i)
-		}
+	const N = 10000
+	cache := new([N]uintptr)
+	for i := 0; i < N; i++ {
+		cache[i] = test()
+		time.Sleep(time.Microsecond)
 	}
-	for i, f := range fs {
-		f()
-	}
+
 }
