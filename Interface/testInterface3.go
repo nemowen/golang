@@ -27,10 +27,8 @@ func main() {
 	fmt.Println(i.(*User).Name)
 
 	fmt.Println(u, i)
-	i.test()
 
 	var ia interface{}
-	var a int = 3289
-	fmt.Println(unsafe.Sizeof(a), ia == nil)
+	fmt.Println(unsafe.Sizeof(ia), ia == nil)
 
 }

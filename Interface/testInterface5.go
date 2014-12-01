@@ -17,8 +17,8 @@ type Tester interface {
 }
 
 //
-func (u *User) test() {
-	fmt.Println(u.name)
+func (*User) test() {
+	fmt.Println("user test")
 }
 
 func main() {
