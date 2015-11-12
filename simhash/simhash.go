@@ -3,8 +3,9 @@ package main
 import (
 	//"encoding/binary"
 	"fmt"
-	"github.com/mfonda/simhash"
 	"strconv"
+
+	"github.com/mfonda/simhash"
 )
 
 func main() {
@@ -14,6 +15,8 @@ func main() {
 		[]byte("q2X6629302"),
 		[]byte("ZyX6629302"),
 	}
+
+	fmt.Printf("%b\n", 8)
 
 	uint64s, _ := strconv.ParseUint("1001100110111100011011010111101101100111100111000110111010010", 2, 64)
 	fmt.Printf("64:%x\n", uint64s)

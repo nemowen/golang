@@ -16,7 +16,7 @@ func (u User) SayHi() {
 
 func main() {
 	u := User{"nemo", 27}
-	fmt.Println(reflect.TypeOf(u).MethodByName("SayHi").)
+	fmt.Println(reflect.TypeOf(u).MethodByName("SayHi"))
 
 }
 
