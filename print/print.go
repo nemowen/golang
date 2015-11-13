@@ -40,5 +40,5 @@ func prints(args ...interface{}) {
 }
 
 func main() {
-	prints("nemowen", Day(4), 5, Celsius(36.5222))
+	prints("nemowen", 28, Day(7), Celsius(36.5222))
 }

@@ -45,9 +45,7 @@ func ooo(i I) {
 func main() {
 	a := new(A)
 	b := B{}
-	a.test()
-	b.test()
 
 	ooo(a)
-	ooo(&b)
+	ooo(b)
 }
