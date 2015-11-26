@@ -19,4 +19,8 @@ func main() {
 	//defer ticket.Stop()
 	//time.t
 
+	t := time.After(time.Second * 1)
+
+	time.Tick()
+
 }
