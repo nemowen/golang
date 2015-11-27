@@ -1,0 +1,9 @@
+<html>
+<body>
+	<h1>{{.Title |html}}</h1>
+	<form id="editform" action="/save/{{.Title |html}}" method="POST">
+		<input name="Body" value='{{printf "%s" .Body |html}}'/>
+		<input type="submit"/> 
+	</form>
+</body>
+</html>
