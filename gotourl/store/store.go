@@ -12,7 +12,7 @@ import (
 type URLStore struct {
 	urls map[string]string
 	lock sync.RWMutex
-	file *os.File
+	ch   chan record
 }
 
 type record struct {
@@ -20,24 +20,29 @@ type record struct {
 }
 
 func NewURLStore(filename string) *URLStore {
-	s := &URLStore{urls: make(map[string]string, 100)}
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		log.Fatal(err)
+	s := &URLStore{
+		urls: make(map[string]string, 100),
+		ch:   make(chan record, 1000),
 	}
-	s.file = f
-	if s.load() != nil {
+
+	if err := s.load(filename); err != nil {
 		log.Fatal("Load Error:", err)
 	}
+
+	go s.saveLoop(filename)
 	return s
 }
 
-func (u *URLStore) load() error {
-	if _, err := u.file.Seek(0, 0); err != nil {
+func (u *URLStore) load(filename string) error {
+	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0644)
+	if err != nil {
 		return err
 	}
-	de := gob.NewDecoder(u.file)
-	var err error
+	defer file.Close()
+	if _, err := file.Seek(0, 0); err != nil {
+		return err
+	}
+	de := gob.NewDecoder(file)
 	for err != io.EOF {
 		var r record
 		if err = de.Decode(&r); err == nil {
@@ -73,18 +78,29 @@ func (u *URLStore) Put(url string) string {
 	for {
 		key := genKey(u.Count())
 		if u.set(key, url) {
-			if err := u.save(key, url); err != nil {
-				log.Fatal("save url error:", err)
-			}
+			u.ch <- record{key, url}
 			return key
 		}
 		return ""
 	}
 }
 
-func (u *URLStore) save(key, url string) error {
-	e := gob.NewEncoder(u.file)
-	return e.Encode(record{key, url})
+func (u *URLStore) saveLoop(filename string) {
+	var file *os.File
+	var err error
+	file, err = os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal("URLStore:", err)
+	}
+	defer file.Close()
+
+	encode := gob.NewEncoder(file)
+	for {
+		r := <-u.ch
+		if err = encode.Encode(r); err != nil {
+			log.Println("URLStore:", err)
+		}
+	}
 }
 
 func genKey(v int) string {
