@@ -1,4 +1,4 @@
-package gotourl
+package store
 
 import (
 	"fmt"
