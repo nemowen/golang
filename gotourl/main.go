@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-var urlstore = store.NewURLStore("store.gob")
+var urlstore = store.NewURLStore("store.json")
 var urlTmpl *template.Template
 
 const UrlForm = `
