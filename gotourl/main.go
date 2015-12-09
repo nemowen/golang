@@ -1,14 +1,19 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/nemowen/golang/gotourl/store"
 	"html/template"
 	"net/http"
+	"net/rpc"
 )
 
-var urlstore = store.NewURLStore("store.json")
-var urlTmpl *template.Template
+var (
+	urlstore  *URLStore
+	urlTmpl   *template.Template
+	rpcEnable = flag.Bool("rpc", "false", "enable RPC Server")
+)
 
 const UrlForm = `
 	<html>
@@ -27,6 +32,12 @@ func init() {
 }
 
 func main() {
+	flag.Parse()
+	urlstore = store.NewURLStore("store.json")
+	if *rpcEnable {
+		rpc.RegisterName("store", urlstore)
+		rpc.HandleHTTP()
+	}
 	http.HandleFunc("/", Redirect)
 	http.HandleFunc("/add", Add)
 	http.ListenAndServe(":8088", nil)
@@ -34,9 +45,10 @@ func main() {
 
 func Redirect(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[1:]
-	url := urlstore.Get(key)
-	if url == "" {
-		http.NotFound(w, r)
+	var url string
+	err := urlstore.Get(&key, &url)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, url, http.StatusFound)
@@ -48,6 +60,11 @@ func Add(w http.ResponseWriter, r *http.Request) {
 		urlTmpl.Execute(w, urlstore.Count())
 		return
 	}
-	key := urlstore.Put(url)
+	var key string
+	err := urlstore.Put(&url, &key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	fmt.Fprintf(w, "http://%s/%s", r.Host, key)
 }

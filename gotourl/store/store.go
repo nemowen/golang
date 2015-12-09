@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -52,20 +53,24 @@ func (u *URLStore) load(filename string) error {
 	return nil
 }
 
-func (u *URLStore) Get(key string) string {
+func (u *URLStore) Get(key, url *string) error {
 	u.lock.RLock()
 	defer u.lock.RUnlock()
-	return u.urls[key]
+	if u, ok := u.urls[*key]; ok {
+		*url = u
+		return nil
+	}
+	return errors.New("key not found")
 }
 
-func (u *URLStore) set(key, url string) bool {
+func (u *URLStore) set(key, url string) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	if _, present := u.urls[key]; present {
-		return false
+		return errors.New("key already exists")
 	}
 	u.urls[key] = url
-	return true
+	return nil
 }
 
 func (u *URLStore) Count() int {
@@ -74,15 +79,19 @@ func (u *URLStore) Count() int {
 	return len(u.urls)
 }
 
-func (u *URLStore) Put(url string) string {
+func (u *URLStore) Put(url, key *string) error {
 	for {
-		key := genKey(u.Count())
-		if u.set(key, url) {
-			u.ch <- record{key, url}
-			return key
+		*key = genKey(u.Count())
+		if err := u.set(*key, *url); err != nil {
+			return err
+		} else {
+			if u.ch != nil {
+				u.ch <- record{*key, *url}
+			}
+			return nil
 		}
-		return ""
 	}
+
 }
 
 func (u *URLStore) saveLoop(filename string) {
