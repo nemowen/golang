@@ -10,6 +10,8 @@ import (
 	"sync"
 )
 
+const SaveQueueLength = 1000
+
 type URLStore struct {
 	urls map[string]string
 	lock sync.RWMutex
@@ -21,16 +23,15 @@ type record struct {
 }
 
 func NewURLStore(filename string) *URLStore {
-	s := &URLStore{
-		urls: make(map[string]string, 100),
-		ch:   make(chan record, 1000),
-	}
+	s := &URLStore{urls: make(map[string]string, 100)}
+	if filename != "" {
+		s.ch = make(chan record, SaveQueueLength)
+		if err := s.load(filename); err != nil {
+			log.Fatal("Load Error:", err)
+		}
 
-	if err := s.load(filename); err != nil {
-		log.Fatal("Load Error:", err)
+		go s.saveLoop(filename)
 	}
-
-	go s.saveLoop(filename)
 	return s
 }
 
