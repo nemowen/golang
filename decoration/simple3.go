@@ -53,6 +53,18 @@ func WithDebugLog(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// Pipeline
+type HttpHandlerDecorator func(http.HandlerFunc) http.HandlerFunc
+
+func With(h http.HandlerFunc, decors ...HttpHandlerDecorator) http.HandlerFunc {
+	n := len(decors)
+	for i := range decors {
+		d := decors[n-1-i] // iterate in reverse
+		h = d(h)
+	}
+	return h
+}
+
 func hello(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved Request %s from %s\n", r.URL.Path, r.RemoteAddr)
 	fmt.Fprintf(w, "Hello, World! %s -> %s", r.URL.Path, r.Header.Get("aa"))
@@ -63,6 +75,7 @@ func main() {
 	http.HandleFunc("/v2/hello", WithServerHeader(WithAuthCookie(hello)))
 	http.HandleFunc("/v3/hello", WithServerHeader(WithBasicAuth(hello)))
 	http.HandleFunc("/v4/hello", WithServerHeader(WithBasicAuth(WithDebugLog(hello))))
+	http.HandleFunc("/v5/hello", With(hello, WithServerHeader, WithAuthCookie, WithDebugLog))
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
