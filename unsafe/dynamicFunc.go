@@ -3,6 +3,8 @@ package main
 /**
 	使用Map,动态调用方法
 **/
+
+type Call func() string
 func main() {
 	funcs := make(map[string]func() string, 10)
 	funcs["a"] = func() string {

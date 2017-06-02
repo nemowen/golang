@@ -11,6 +11,7 @@ type data struct {
 
 func main() {
 	d := data{name: "Nemo", age: 28}
+	println(unsafe.Pointer(&d))
 	p := unsafe.Pointer(&d)
 	s := (*string)(p)
 	println(*s, s)

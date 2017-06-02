@@ -20,4 +20,8 @@ func main() {
 	pit := (*int)(unsafe.Pointer(&d.a))
 	*pit += 4
 	fmt.Println(d)
+
+	bpit := (*string)(unsafe.Pointer(&d.b))
+	*bpit = "nemowen"
+	fmt.Println(d)
 }

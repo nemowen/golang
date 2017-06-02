@@ -23,7 +23,7 @@ func main() {
 	//p = &u
 	//p = (*int32)(&u)
 	p = (*int32)(unsafe.Pointer(&u))
-	fmt.Println(p)
+	fmt.Println("1111:", p)
 
 	t := new(interface{})
 	fmt.Println(t)

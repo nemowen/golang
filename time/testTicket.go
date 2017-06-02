@@ -6,21 +6,12 @@ import (
 )
 
 func main() {
-	ticket := time.Tick(time.Second * 1) //time.NewTicker(time.Second * 3)
-	//	for {
-	//		select {
-	//		case <-ticket:
-	//			println("ok")
-	//		}
-	//	}
-	for i := range ticket {
-		fmt.Println("ok", i)
+	ticket := time.Tick(time.Millisecond * 1000) //time.NewTicker(time.Second * 1)
+	for {
+		select {
+		case i := <-ticket:
+			fmt.Println(i.Format("2006-01-02 15:04:05"))
+		}
 	}
-	//defer ticket.Stop()
-	//time.t
-
-	t := time.After(time.Second * 1)
-
-	time.Tick()
 
 }

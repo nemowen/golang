@@ -10,4 +10,13 @@ func main() {
 	str = strings.Trim(str, "\t\r\n ")
 	fmt.Printf("%s\n", str)
 
+	a := strings.Contains("/fghgh//", "//")
+	fmt.Println(a)
+
+	b := strings.TrimPrefix("/aa/bb/", "/")
+	fmt.Println(b)
+
+	c := strings.TrimSuffix("/aa/bb/", "b/")
+	fmt.Println(c)
+
 }
