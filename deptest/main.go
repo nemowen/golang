@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+	
 	mx := mux.New()
 	mx.Handler("GET", "/", http.FileServer(http.Dir(".")))
 	log.Fatal(http.ListenAndServe(":8080", mx))

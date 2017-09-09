@@ -1,4 +1,4 @@
-package mytest
+package main
 
 type AAAA struct {
 	A int
