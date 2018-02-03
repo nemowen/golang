@@ -42,4 +42,6 @@ func main() {
 		fmt.Println("网卡地址不匹配")
 		os.Exit(0)
 	}
+
+	fmt.Println("ok")
 }
