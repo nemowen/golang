@@ -92,6 +92,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	claims := make(jwt.MapClaims)
 	claims["exp"] = time.Now().Add(time.Minute * time.Duration(1)).Unix()
 	claims["iat"] = time.Now().Unix()
+	claims["iss"] = "发行者"
+	claims["sub"] = "主题"
+	claims["aud"] = "观众"
 	token.Claims = claims
 
 	if err != nil {
