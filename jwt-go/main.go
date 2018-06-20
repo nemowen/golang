@@ -94,7 +94,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	claims["iat"] = time.Now().Unix()
 	claims["iss"] = "发行者"
 	claims["sub"] = "主题"
-	claims["aud"] = "观众"
+	claims["aud"] = "颁发给谁"
 	token.Claims = claims
 
 	if err != nil {
